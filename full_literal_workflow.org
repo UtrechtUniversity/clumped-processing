@@ -42,42 +42,7 @@ written by Ilja J. Kocken [[https://orcid.org/0000-0003-2196-8718][orcid:0000-00
 * Introduction
 This is the dataprocessing workflow for clumped isotopes at Utrecht Univeristy, where we go from raw data to final clumped isotope (Δ47) values.
 
-Please note that the document is in an early stage and things may be unclear to the reader. If you have any questions, feel free to contact me at [[mailto:i.j.kocken@uu.nl]] or on Teams!
-
-The basic workflow and structure of the document:
-
-1. we copy remote raw data files from the backup server to our local machine for faster access using a simple shell script
-2. these data files are read into R format using [[https://isoreader.isoverse.org/][isoreader]]. Specifically the functions ~iso_read_dual_inlet()~ and ~iso_read_scan()~
-3. metadata mistakes are fixed, metadata is parsed to the right format (from the character vector, i.e. Preparation ~"240"~ to the integer $240$) and rawdata and metadata are exported separately because these computation steps take quite long.
-4. the background scans are processed, the resulting models for pressure baseline effects are exported. This is done based on the HighVoltage range that the peaks and backgrounds occur in.
-5. all raw data files are processed together!
-   1. (parts of) measurements with a sudden drop in pressure are flagged as outliers (based on input criteria)
-   2. data are reshaped into a wide format (reference gas and sample gas are put adjacent to each other)
-   3. pressure baseline models are matched to raw data and this "pressure baseline correction" is applied with an input factor
-   4. the reference gas delta values are retrieved from the raw data and appended as new columns
-   5. R: abundance ratios of sample gas and reference gas are calculated
-   6. \delta: small delta values are calculated
-   7. \Delta: big delta values are calculated. Note that the ~R18~ value is determined by ~Mineralogy~. The input isotopic parameters are the IUPAC parameters cite:Brand2010.
-   8. automatic outlier detection is done based on ~param_49~ and the ~R_flags~ for these raw values.
-   9. sample averages are calculated (cycle data is nested), ignoring the outlier cycles.
-   10. metadata is added to the sample averages
-   11. outliers are determined based on initial sample and reference gas intensity (input)
-   12. outliers are determined for samples where >30% of the cycles are defined as outliers based on earlier criteria (% is an input).
-   13. rolling offset corrections are performed
-       - for \Delta_{47} with a window size of 7, grouped by ~Preparation~ (= run) based on ETH-3.
-       - for \delta^{13}C and \delta^{18}O with a window size of 15, based on ETH-1--3.
-   14. standards that are more than an input value off from the expected are marked as outliers (input).
-   15. a rolling Empirical Transfer Function (etf) is applied (windowsize 201, input) based on ETH-1--3.
-   16. acid fractionation correction from 70\celsius to 25\celsius is applied (input, 0.0624), not changed based on ~Mineralogy~ yet!
-   17. temperatures are calculated based on the recalculated cite:Kele2015 calibration from cite:Bernasconi2018. Note that you shouldn't use these temperatures but calculate your cluster average \Delta_{47} value and convert that to temperature in stead.
-   18. a ~reason_for_outlier~ columns is made to summarize all the ~outlier_*~ columns.
-   19. columns are re-ordered to be more intuitive to follow along
-6. excel files are exported
-7. +an interactive html widget is created and exported to zip+ (I've excluded this since Kees is working on a much nicer version)
-8. people mark their manual changes/manual outliers for other reasons based on this output in ~motu_metadata.xlsx~ and related files.
-9. these files are imported in step 3.
-
-That's maybe too detailed, but I hope it helps!
+Each function has associated documentation in the same heading.
 
 ** ~targets~ explanation
 Using the R-package [[https://wlandau.github.io/targets-manual/][targets]], we can run only those parts of the code that need to be updated. The basic structure is we first load the necessary libraries, then we define functions that do most of the work, and then a workflow of targets with function calls that ~targets~ analyses for inter-dependencies.
