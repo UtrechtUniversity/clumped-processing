@@ -1,0 +1,12 @@
+#+title: clumped-processing
+
+See [[file:full_literal_workflow.org]] for the entire workflow! This is a [[https://en.wikipedia.org/wiki/Literate_programming][literate programming]] example, where the code itself is surrounded by rich-text explanation.
+If we need to run the workflow, we can [[https://orgmode.org/manual/Extracting-Source-Code.html#Extracting-Source-Code][~tangle~ the files]] to generate the ~_targets.R~ file as well as the ~R/functions.R~ file.
+
+The required R packages for this workflow are:
+
+- [[https://github.com/isoverse/clumpedr/][~clumpedr~ package]], install with ~devtools::install_github("isoverse/clumpedr")~
+- some packages in the tidyverse. It's probably easiest to just install them all...
+- readxl
+- isoreader
+- slider
