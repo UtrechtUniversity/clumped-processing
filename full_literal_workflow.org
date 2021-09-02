@@ -2316,19 +2316,19 @@ I've made the calls to ~clumpedr~ explicit with ~::~ so that it is clear which f
                                                         etf_coefs = etf_coefs_off,
                                                         slope = etf_slope_grp_off,
                                                         intercept = etf_intercept_grp_off) %>%
-                               ## ## raw rolling, 201
-                               ## rolling_etf(x = expected_D47, y = D47_raw_mean,
-                               ##             std = etf_stds, width = etf_width,
-                               ##             slope = etf_slope_raw,
-                               ##             intercept = etf_intercept_raw) %>%
-                               ## ## offset rolling, 201
-                               ## rolling_etf(x = expected_D47,
-                               ##             y = D47_offset_corrected,
-                               ##             std = etf_stds, width = etf_width,
-                               ##             slope = etf_slope,
-                               ##             intercept = etf_intercept) %>%
-                               ## apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) %>%
-                               ## apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) %>%
+                               ## raw rolling, 201
+                               rolling_etf(x = expected_D47, y = D47_raw_mean,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope_raw,
+                                           intercept = etf_intercept_raw) %>%
+                               ## offset rolling, 201
+                               rolling_etf(x = expected_D47,
+                                           y = D47_offset_corrected,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope,
+                                           intercept = etf_intercept) %>%
+                               apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) %>%
+                               apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) %>%
                                apply_etf(intercept = etf_intercept_grp, slope = etf_slope_grp, raw = D47_raw_mean, out = D47_final_no_offset) %>%
                                apply_etf(intercept = etf_intercept_grp_off, slope = etf_slope_grp_off, raw = D47_offset_corrected, out = D47_final) %>%
                                temperature_calculation(D47 = D47_final, slope = .data$temperature_slope,
