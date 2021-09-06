@@ -2338,7 +2338,7 @@ I've made the calls to ~clumpedr~ explicit with ~::~ so that it is clear which f
                                                        slope = .data$temperature_slope, intercept = .data$temperature_intercept) %>%
                                create_reason_for_outlier() %>%
                                select(-where(is.list)) %>% # this might solve hanging?
-                               ## order_columns() %>%
+                               order_columns() %>%
                                arrange(file_datetime),
              format = "qs"),
 #+end_src

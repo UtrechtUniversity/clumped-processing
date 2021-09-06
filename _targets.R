@@ -359,7 +359,7 @@ tar_target(motu_temperature, motu_sample_level %>%
                                                      slope = .data$temperature_slope, intercept = .data$temperature_intercept) %>%
                              create_reason_for_outlier() %>%
                              select(-where(is.list)) %>% # this might solve hanging?
-                             ## order_columns() %>%
+                             order_columns() %>%
                              arrange(file_datetime),
            format = "qs"),
 
