@@ -35,8 +35,6 @@ written by Ilja J. Kocken [[https://orcid.org/0000-0003-2196-8718][orcid:0000-00
   - [[#sync-the-newest-files-to-local][sync the newest files to local]]
   - [[#first-update-the-metadata][first update the metadata]]
   - [[#then-run-the-remainder][then run the remainder]]
-  - [[#then-check-out-inspection-plots-below][then check out inspection plots below]]
-    - [[#reconsider-howwhere-to-check-out-these-inspection-plots-should-they-all-become-a-part-of-isoinspector][reconsider how/where to check out these inspection plots. Should they all become a part of isoinspector?]]
   - [[#upload-results-to-onedrive][upload results to OneDrive]]
 :END:
 
@@ -2969,7 +2967,6 @@ Below I write what I currently have to do manually to get everything working:
 ** then run the remainder
 - run ~motu_export_csv~ | ~pacman_export_csv~ | ~pacman_caf_export_csv~
 - run ~motu_out~ | ~pacman_out~ | ~pacman_caf_out~
-** then check out my new inspection plots below
 ** upload results to OneDrive
 - ~out/motu_all_data_RAW.csv~
 - ~out/motu_cycle_level_summaries.rds~
