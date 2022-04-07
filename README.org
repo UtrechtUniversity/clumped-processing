@@ -1,4 +1,5 @@
 #+title: clumped-processing
+[[https://zenodo.org/badge/latestdoi/400205023][https://zenodo.org/badge/400205023.svg]]
 
 This is processing code for the clumped isotope measurements made with the Thermo Fisher MAT 253 plus isotope ratio mass spectrometer with the Kiel IV automatic line, located in the Vening-Meineszbuilding B, for the Stratigraphy and Paleontology group at Earth Sciences, UU.
 
