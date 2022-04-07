@@ -28,14 +28,14 @@ batch_files <- function(data) {
   tapply(data$file_path,
          ## INDEX = data$file_year + 1/12 * data$file_month,
          INDEX = data$file_dir,  # also possible to batch by directory
-         identity, simplify = FALSE) %>%
+         identity, simplify = FALSE) |>
     unname()
 }
 
 batch_month <- function(data) {
   tapply(data$file_path,
          INDEX = data$file_year + 1/12 * data$file_month,
-         identity, simplify = FALSE) %>%
+         identity, simplify = FALSE) |>
     unname()
 }
 
@@ -50,7 +50,7 @@ read_scn <- function(data, cache = FALSE, parallel = TRUE, quiet = FALSE) {
 }
 
 meta_fix_types <- function(data) {
-  data %>%
+  data |>
     # new format with parms included
     type_convert(col_types = cols(Analysis = "i",
                                   file_id = "c",
@@ -146,40 +146,40 @@ meta_fix_types <- function(data) {
                                   Mineralogy = "c",
                                   checked_by = "c",
                                   checked_date = "T",
-                                  checked_comment = "c")) %>%
-     mutate(Preparation = as.double(Preparation))
+                                  checked_comment = "c")) #|>
+     ## mutate(Preparation = as.double(Preparation))
 }
 
 filter_info_duplicates <- function(data) {
-  data %>%
+  data |>
     tidylog::distinct(file_id, file_datetime, file_size, .keep_all=TRUE)
 }
 
 add_timeofday <- function(data) {
   message("Info: adding timeofday")
-  data %>%
+  data |>
     mutate(timeofday = lubridate::hour(file_datetime) +
              lubridate::minute(file_datetime) / 60 +
              lubridate::second(file_datetime) / 60 / 60)
 }
 
 find_bad_runs <- function(data) {
-  out <- data %>%
-    file_name_prep() %>%
-    tidylog::filter(Preparation != file_id_prep) %>%
-    select(file_id, Preparation, file_id_prep) %>%
+  out <- data |>
+    file_name_prep() |>
+    tidylog::filter(Preparation != file_id_prep) |>
+    select(file_id, Preparation, file_id_prep) |>
     tidylog::distinct(Preparation, file_id_prep, .keep_all = TRUE)
 }
 
 file_name_prep <- function(data) {
-  data %>%
-    mutate(file_id_prep = str_extract(file_id, "_\\d{1,3}_?(restart_)?B?") %>%
-             str_replace_all("_", "") %>% str_replace_all("restart", "") %>%
-             str_replace_all("B", "") %>% parse_integer())
+  data |>
+    mutate(file_id_prep = str_extract(file_id, "_\\d{1,3}_?(restart_)?B?") |>
+             str_replace_all("_", "") |> str_replace_all("restart", "") |>
+             str_replace_all("B", "") |> parse_integer())
 }
 
 parse_col_types <- function(.data) {
-  .data %>%
+  .data |>
     type_convert(col_types = cols(file_id = "c",
                                   file_root = "c",
                                   file_path = "c",
@@ -210,71 +210,71 @@ split_meas_info <- function(.data) {
       return(.data)
     }
 
-    .data %>%
+    .data |>
         extract(measurement_info,
                 into = "acid_temperature",
                 regex = "Acid: *(-?\\d+\\.?\\d*) *\\[?°?C?\\]?",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "leak_rate",
                 regex =   "LeakRate *\\[µBar/Min\\]: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "extra_drops",
                 regex = "(\\d+) *xtra *drops",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "p_no_acid",
                 regex = "P no Acid : *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "p_gases",
                 regex = "P gases: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "total_CO2",
                 regex = "Total CO2 *: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "no_exp",
                 regex = "# Exp\\.: *(-?\\d+\\.?\\d*)?",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "CO2_after_exp",
                 regex = "CO2 after Exp\\.: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "VM1_aftr_trfr",
                 regex = "VM1 *aftr *Trfr\\.: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "PC",
                 regex = "PC \\[(-?\\d+\\.?\\d*)\\]",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "background",
                 regex = "Background: (.*)\n",
-                remove = FALSE) %>%
+                remove = FALSE) |>
         extract(measurement_info,
                 into = "init_int",
                 regex =  "Init int: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = "bellow_pos_smp",
                 regex = "Bellow Pos: *(-?\\d+\\.?\\d*)%",
                 remove = FALSE,
-                convert = TRUE) %>%
+                convert = TRUE) |>
         extract(measurement_info,
                 into = c("ref_mbar", "ref_pos"),
                 regex = "RefI: *mBar *r *(-?\\d+\\.?\\d*) *pos *r *(-?\\d+\\.?\\d*)",
@@ -284,13 +284,13 @@ split_meas_info <- function(.data) {
 
 #' this adds the initial intensities from dids to the metadata
 add_inits <- function(.data, dids) {
-  inits <- dids %>%
+  inits <- dids |>
     iso_get_raw_data(select = c(cycle, type, v44.mV),
                      include_file_info = Analysis)
 
   ifelse(nrow(inits) > 0L,
-         inits <- inits %>%
-           get_inits() %>%
+         inits <- inits |>
+           get_inits() |>
            mutate(Analysis = parse_integer(Analysis)),
          inits <- tibble(file_id = character(), Analysis = integer(), s44_init = double(), r44_init = double()))
 
@@ -302,52 +302,61 @@ fix_metadata <- function(data, meta, irms = "MotU-KielIV") {
     return(tibble(file_id = character()))
   }
 
-  out <- data %>%
+  out <- data |>
+    # add the metadata overwrite columns!
     tidylog::left_join(
-               meta %>%
-               ## tidylog::filter(!(is.na(.data$file_id) | is.na(.data$Analysis))) %>%
-               ## tidylog::mutate(file_id_og = str_replace(file_id, "#\\d+$", "")) %>%
-               select(.data$Analysis, .data$`Identifier 1`, #ends_with("_init"),
+               meta |>
+               select(.data$Analysis, .data$file_id, #.data$`Identifier 1`,
                       ends_with("_overwrite"), .data$manual_outlier, .data$Mineralogy,
-                      starts_with("checked_")), by = c("Analysis", "Identifier 1")
-             ) %>%
-    # TODO: overwrite these in the _overwrite columns in stead of using this function!
-    tidylog::mutate(`Weight [mg]` = ifelse("Weight [mg]" %in% colnames(data),
-                                           parse_double(`Weight [mg]`),
-                                           NA_real_), # 8 non-numbers, mostly ? and one 9+0
-                    # deal with Arnold's a/b/c run numbers
-                    Preparation_int = ifelse("Preparation" %in% colnames(data),
-                                             parse_integer(Preparation),
-                                             NA_integer_) # fuuu 138 non-numbers for Arnolds' 358a and 358b
-                    )
-  # many pacman caf runs do not have the Preparation column yet!
-  if ("Preparation" %in% colnames(out)) {
-    out <- out %>%
-      ## TODO: overwrite these in the _overwrite columns in stead of using this function!
-      tidylog::mutate(Preparation = ifelse(is.na(Preparation_int) & !is.na(Preparation),
-                                           str_extract(Preparation, "\\d+"), Preparation),
-                      Preparation = parse_double(Preparation))
+                      starts_with("checked_")), by = c("Analysis", "file_id"))
+
+  # make sure that weight exists and is a double
+  if ("Weight [mg]" %in% colnames(out)) {
+    out <- out |>
+      # in case the weight is not a double, try to parse it automatically
+      mutate(weight_double = parse_double(`Weight [mg]`)) |>
+      tidylog::mutate(`Weight [mg]` = ifelse(!is.na(weight_double),
+                                             weight_double,
+                                             # parsing the weight simply failed, trying to extract it from the string
+                                             str_extract(`Weight [mg]`, "\\d+.?\\d*") |> parse_double())) |>
+      select(-weight_double)
   } else {
-    out <- out %>%
-      mutate(Preparation = NA_real_)
+    out <- out |> mutate(`Weight [mg]` = NA_real_)
   }
-  # get the Preparation number from the directory name, if possible
-  out %>%
-    tidylog::mutate(Preparation_overwrite =
-                                # Pacman caf naming convention (if adhered to) is YYMMDD_people (so we'll use the date)
-                      case_when(irms == "Pacman-KielIII" & is.na(Preparation_overwrite) ~
-                                  str_extract(file_root, "cafs/\\d{6}") %>%
-                                  str_extract("\\d{6}") %>%
-                                  parse_integer(),
-                                # Pacman did naming convention (if adhered to) is _YYMMDD_prep number
-                                irms == "Pacman-KielIV" & is.na(Preparation_overwrite) ~
-                                  str_extract(file_root, "\\d{6}_\\d+$") %>%
-                                  str_extract("\\d+$") %>%
-                                  parse_integer(),
-                                irms == "MotU-KielIV" & !is.na(Preparation_overwrite) ~
-                                  Preparation_overwrite %>% as.integer(),
-                                TRUE ~ NA_integer_)) %>%
-    select(-Preparation_int) %>%
+
+  # this makes sure that Preparation exists and is an integer!
+  if ("Preparation" %in% colnames(out)) {
+    out <- out |>
+      # we don't do anything with preparation_overwrite yet, that's for overwrite_meta
+      mutate(Preparation_integer = parse_integer(Preparation)) |>
+      # convert preparation to integer, if this didn't work first extract the
+      # first number from the text then parse it.
+      tidylog::mutate(Preparation = ifelse(!is.na(Preparation_integer),
+                                           Preparation_integer,
+                                           str_extract(Preparation, "\\d+") |> parse_integer())) |>
+      select(-Preparation_integer)  # get rid of temporary column
+  } else { # there's no preparation column
+    out <- out |>
+      mutate(Preparation = NA_integer_)
+  }
+
+  out |>
+    # get the Preparation number from the directory name, if possible
+    # NOTE: 2021-10-11 commented out because hopefully the metadata file has all this info now!
+    ## tidylog::mutate(Preparation_overwrite =
+    ##                             # Pacman caf naming convention (if adhered to) is YYMMDD_people (so we'll use the date)
+    ##                   case_when(irms == "Pacman-KielIII" & is.na(Preparation_overwrite) ~
+    ##                               str_extract(file_root, "cafs/\\d{6}") |>
+    ##                               str_extract("\\d{6}") |>
+    ##                               parse_integer(),
+    ##                             # Pacman did naming convention (if adhered to) is _YYMMDD_prep number
+    ##                             irms == "Pacman-KielIV" & is.na(Preparation_overwrite) ~
+    ##                               str_extract(file_root, "\\d{6}_\\d+$") |>
+    ##                               str_extract("\\d+$") |>
+    ##                               parse_integer(),
+    ##                             irms == "MotU-KielIV" & !is.na(Preparation_overwrite) ~
+    ##                               Preparation_overwrite |> as.integer(),
+    ##                             TRUE ~ NA_integer_)) |>
     mutate(masspec = irms)
 }
 
@@ -356,12 +365,12 @@ add_parameters <- function(data, meta) {
   cm <- colnames(meta)
   cn <- cm[!cm %in% cd]
 
-  data %>%
+  data |>
     tidylog::left_join(
-               meta %>%
-               select(.data$Analysis, .data$`Identifier 1`,
+               meta |>
+               select(.data$Analysis,.data$file_id, #.data$`Identifier 1`,
                       one_of(cn)),
-               by = c("Analysis", "Identifier 1"))
+               by = c("Analysis", "file_id"))
 }
 
 overwrite_meta <- function(meta, masspec = "MotU-KielIV", stdnames) {
@@ -375,7 +384,7 @@ overwrite_meta <- function(meta, masspec = "MotU-KielIV", stdnames) {
     warning(glue::glue("Colname(s) '{glue::glue_collapse(desired_cols[!cols_exist], sep = ' ', width = 30L, last = ' and ')}' not found in meta"))
   }
 
-  meta %>%
+  meta |>
     tidylog::mutate(
                preparation = ifelse("Preparation" %in% colnames(meta) &&
                                     is.na(.data$Preparation_overwrite),
@@ -390,29 +399,29 @@ overwrite_meta <- function(meta, masspec = "MotU-KielIV", stdnames) {
                                      .data$`Identifier 2`, .data$`Identifier 2_overwrite`),
                weight = ifelse("Weight [mg]" %in% colnames(meta) &&
                                is.na(.data$`Weight [mg]_overwrite`),
-                               .data$`Weight [mg]`, .data$`Weight [mg]_overwrite`),
+                               .data$`Weight [mg]`,
+                               .data$`Weight [mg]_overwrite` |> as.double()),
                comment = ifelse("Comment" %in% colnames(meta) &&
                                 is.na(.data$Comment_overwrite),
                                 .data$Comment, .data$Comment_overwrite),
-               # TODO: actually do something with scan_group
                masspec = .data$masspec,
                ## scan_group = ifelse(is.na(scan_group_overwrite), scan_group, scan_group_overwrite),
                broadid = ifelse(.data$identifier_1 %in% stdnames, identifier_1, "other"))
 }
 
 filter_raw_duplicates <- function(data) {
-  dups <- data %>%
-    filter(cycle==0, type=="standard") %>%
+  dups <- data |>
+    filter(cycle==0, type=="standard") |>
     tidylog::distinct(Analysis, v44.mV, .keep_all = TRUE) # message tells us the number of dups
 
-  data %>%
+  data |>
     filter(file_id %in% dups$file_id & Analysis %in% dups$Analysis)
 }
 
 export_metadata <- function(data, meta, file) {
-   data %>%
-     tidylog::filter(Analysis > max(meta$Analysis, na.rm = TRUE)) %>%
-     rename(c("manual_outlier" = "outlier_manual")) %>%
+   data |>
+     tidylog::filter(Analysis > max(meta$Analysis, na.rm = TRUE)) |>
+     rename(c("manual_outlier" = "outlier_manual")) |>
      tidylog::select(all_of(c("Analysis",
                               "file_id",
                               "file_root",
@@ -486,26 +495,27 @@ export_metadata <- function(data, meta, file) {
                               "Mineralogy",
                               "checked_by",
                               "checked_date",
-                              "checked_comment"))) %>%
+                              "checked_comment"))) |>
      writexl::write_xlsx(file)
-   return(file)
+   file
 }
 
 extract_file_info <- function(did) {
-  did %>%
-    iso_get_file_info() %>%
-    filter_info_duplicates() %>%
-    parse_col_types() %>%
-    split_meas_info() %>%
-    select(-one_of("measurement_info")) %>% # this is a list
-    add_timeofday() %>%
-    add_inits(did) %>%
+  did |>
+    iso_get_file_info() |>
+    filter_info_duplicates() |>
+    parse_col_types() |>
+    split_meas_info() |>
+    select(-one_of("measurement_info")) |> # this is a list
+    add_timeofday() |>
+    add_inits(did) |>
     clumpedr::append_ref_deltas(.did = did)
 }
 
 create_metadata <- function(meta, file) {
-   meta %>%
-     rename(c("manual_outlier" = "outlier_manual")) %>%
+   meta |>
+     rename(c("manual_outlier" = "outlier_manual")) |>
+     arrange(file_datetime) |>
      tidylog::select(one_of(c("Analysis",
                               "file_id",
                               "file_root",
@@ -579,9 +589,9 @@ create_metadata <- function(meta, file) {
                               "Mineralogy",
                               "checked_by",
                               "checked_date",
-                              "checked_comment"))) %>%
+                              "checked_comment"))) |>
      writexl::write_xlsx(file)
-   return(file)
+   file
 }
 
 file_name_scn <- function(data) {
@@ -589,20 +599,24 @@ file_name_scn <- function(data) {
     return(tibble(file_id = character()))
   }
 
-  data %>%
-    tidylog::mutate(scan_group = str_extract(file_id, "^(.+)_") %>%
-                      str_replace_all("_", "") %>%
+  data |>
+    # we're searching for numbers/characters, then an underscore. Mostly we use
+    # YYMMDD_#V.scn but sometimes something else
+    tidylog::mutate(scan_group = str_extract(file_id, "^[\\dA-z]+?_") |>
+                      # get rid of the underscore
+                      str_replace_all("_", "") |>
                       # another format for 190215 :S
                       str_replace("BG\\d{1,2}V", ""),
-                    voltage = str_extract(file_id, "\\d+\\.?\\d*V") %>%
-                      str_replace("V", "") %>%
-                      parse_double()) %>%
-    group_by(scan_group) %>%
-    tidylog::mutate(scan_datetime = first(file_datetime)) %>%
-    group_by(file_id) %>%
+                    # we look for the voltage in the filename, must be format NNV or NN.NNV
+                    voltage = str_extract(file_id, "\\d+\\.?\\d*V") |>
+                      str_replace("V", "") |>
+                      parse_double()) |>
+    group_by(scan_group) |>
+    tidylog::mutate(scan_datetime = first(file_datetime)) |>
+    group_by(file_id) |>
     tidylog::mutate(voltage_max = purrr::possibly(map_dbl, NA_real_)(
       data,
-      ~ max(.$v44.mV, na.rm = TRUE))) %>%
+      ~ max(.$v44.mV, na.rm = TRUE))) |>
     ungroup(file_id)
 }
 
@@ -611,7 +625,7 @@ fix_scan_meta <- function(data) {
     return(tibble(file_id = character()))
   }
 
-  data %>%
+  data |>
     tidylog::mutate(scan_group = ifelse(is.na(scan_group_overwrite),
                                         scan_group,
                                         scan_group_overwrite),
@@ -619,7 +633,7 @@ fix_scan_meta <- function(data) {
                                      voltage,
                                      voltage_overwrite),
                     fix_software = ifelse(is.na(fix_software), FALSE, fix_software),
-                    outlier_scan_manual = ifelse(is.na(manual_outlier), FALSE, manual_outlier)) %>%
+                    outlier_scan_manual = ifelse(is.na(manual_outlier), FALSE, manual_outlier)) |>
     select(-manual_outlier)
 }
 
@@ -632,11 +646,11 @@ fix_motu_scans <- function(data) {
     warning("Column names v47.mV, v54.mV and fix_software not found")
     return(data)
   }
-  if (sum(data %>% distinct(file_id, .keep_all = TRUE) %>% pull(fix_software) > 0)) {
-    glue::glue("Info: fixing software settings for {sum(data %>% distinct(file_id, .keep_all = TRUE) %>% pull(fix_software) > 0)} scans.") %>%
+  if (sum(data |> distinct(file_id, .keep_all = TRUE) |> pull(fix_software) > 0)) {
+    glue::glue("Info: fixing software settings for {sum(data |> distinct(file_id, .keep_all = TRUE) |> pull(fix_software) > 0)} scans.") |>
       message()
   }
-  data %>%
+  data |>
     tidylog::mutate(v47.mV = ifelse(fix_software, v47.mV - v54.mV, v47.mV))
 }
 
@@ -645,13 +659,13 @@ tidy_scans <- function(data) {
     return(tibble(file_id = character()))
   }
 
-  data %>%
+  data |>
     # there are a bunch of weird columns in Pacman scans that I get rid of here
-    tidylog::select(-one_of(c("v17.6.mV", "v18.mV", "v18.4.mV", "v2.mV", "v3.mV")),
+    tidylog::select(-any_of(c("v17.6.mV", "v18.mV", "v18.4.mV", "v2.mV", "v3.mV")),
                     -matches("v\\d+\\.\\d+\\.mV"),
-                    -matches("vC\\d+\\.mV")) %>%
-    tidylog::pivot_longer(cols = matches("v\\d+\\.mV"), names_pattern = "v(\\d+).mV") %>%
-    tidylog::mutate(name = parse_integer(name)) %>%
+                    -matches("vC\\d+\\.mV")) |>
+    tidylog::pivot_longer(cols = matches("v\\d+\\.mV"), names_pattern = "v(\\d+).mV") |>
+    tidylog::mutate(name = parse_integer(name)) |>
     tidylog::rename("mass" = "name", "intensity" = "value")
 }
 
@@ -666,13 +680,13 @@ flag_scan_ranges <- function(data) {
     return(tibble(file_id = character()))
   }
 
-  data %>%
-    tidylog::filter(!outlier_scan_manual) %>% # get rid of manually labelled failed scans
-    tidylog::filter(intensity >= min | is.na(min)) %>%
-    tidylog::filter(intensity <= max | is.na(max)) %>%
+  data |>
+    ## tidylog::filter(!outlier_scan_manual) |> # get rid of manually labelled failed scans
+    tidylog::filter(intensity >= min | is.na(min)) |>
+    tidylog::filter(intensity <= max | is.na(max)) |>
     tidylog::mutate(min_sub = ifelse(mass == 44,
                           x > min_start_44 & x < min_end_44,
-                                 x > min_start_45_49 & x < min_end_45_49)) %>%
+                                 x > min_start_45_49 & x < min_end_45_49)) |>
     tidylog::mutate(max_sub = x > max_start & x < max_end)
 }
 
@@ -690,15 +704,15 @@ flag_scan_capped <- function(data,
 
   crit <- tibble(mass = c(44, 45:49, 54), cap = c(m44, m45, m46, m47, m48, m49, m54))
 
-  minrange <- data %>%
-    filter(min_sub) %>%
-    left_join(crit, by = "mass") %>%
-    group_by(file_id, mass) %>%
-    mutate(outlier_scan_minimumcap = any(intensity <= cap)) %>% # low in the minimum range?
-    ungroup(file_id, mass) %>%
+  minrange <- data |>
+    filter(min_sub) |>
+    left_join(crit, by = "mass") |>
+    group_by(file_id, mass) |>
+    mutate(outlier_scan_minimumcap = any(intensity <= cap)) |> # low in the minimum range?
+    ungroup(file_id, mass) |>
     distinct(file_id, mass, outlier_scan_minimumcap)
 
-  data %>%
+  data |>
     left_join(minrange, by = c("file_id", "mass"))
 }
 
@@ -708,7 +722,7 @@ calculate_min_max <- function(data) {
   }
 
   # this makes sure I only add real metadata, not the min/max/model output
-  meta <- data %>%
+  meta <- data |>
     distinct(file_id,
              file_root,
              file_datetime,
@@ -730,20 +744,20 @@ calculate_min_max <- function(data) {
              checked_date,
              checked_comment)
 
-  max_intensity <- data %>%
-    filter(max_sub | is.na(max_sub)) %>%
-    group_by(file_id, file_root, file_datetime, voltage, voltage_max, mass, scan_group, scan_datetime) %>%
+  max_intensity <- data |>
+    filter(max_sub | is.na(max_sub)) |>
+    group_by(file_id, file_root, file_datetime, voltage, voltage_max, mass, scan_group, scan_datetime) |>
     summarise(measure = "max", value = mean(intensity))
 
-  min_intensity <- data %>%
-    filter(min_sub | is.na(min_sub))  %>%
-    tidylog::filter(is.na(outlier_scan_minimumcap) | !outlier_scan_minimumcap) %>%
-    group_by(file_id, file_root, file_datetime, voltage, voltage_max, mass, scan_group, scan_datetime) %>%
+  min_intensity <- data |>
+    filter(min_sub | is.na(min_sub))  |>
+    tidylog::filter(is.na(outlier_scan_minimumcap) | !outlier_scan_minimumcap) |>
+    group_by(file_id, file_root, file_datetime, voltage, voltage_max, mass, scan_group, scan_datetime) |>
     summarise(measure = "min", value = mean(intensity))
 
   # SOME: how to make pivot_scans not remove all the stuff from before?
-  bind_rows(min_intensity, max_intensity) %>%
-    pivot_scans()  %>%
+  bind_rows(min_intensity, max_intensity) |>
+    pivot_scans()  |>
     left_join(meta,
               by = c("file_id",
                      "file_root",
@@ -755,8 +769,8 @@ calculate_min_max <- function(data) {
 }
 
 pivot_scans <- function(data) {
-  data %>%
-    ungroup() %>%
+  data |>
+    ungroup() |>
     tidylog::pivot_wider(names_from = c(measure, mass),
                          values_from = value)
 }
@@ -766,47 +780,56 @@ calculate_scan_models <- function(data) {
     return(tibble(scan_group = character()))
   }
 
-  data %>%
-    group_by(scan_group) %>%
+  data |>
+    group_by(scan_group) |>
     nest(data = c(starts_with("file_"), starts_with("voltage"),
-                  starts_with("min_4"), starts_with("min_54"), starts_with("max_4"), starts_with("max_54"))) %>%
-    tidylog::mutate(scan_datetime = map_dbl(data, ~ min(.x$file_datetime)) %>%
+                  starts_with("min_4"),
+                  starts_with("min_54"),
+                  starts_with("max_4"),
+                  starts_with("max_54"),
+                  # the min max min_start min_end max_start max_end columns
+                  # SHOULD all be identical within a scan_group
+                  # so we do not need to nest by those. But we do it anyway!
+                  min, max, min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end,
+                  fix_software, scan_group_overwrite,
+                  outlier_scan_manual, checked_by, checked_date, checked_comment)) |>
+    tidylog::mutate(scan_datetime = map_dbl(data, ~ min(.x$file_datetime)) |>
                       as.POSIXct(origin = "1970-01-01 00:00.00"),
                     scan_files = map(data, ~ paste(.x$file_id)),
-                    scan_n = map_dbl(data, ~ nrow(.x)), ## TODO: 45 is not linear, but very minor
+                    scan_n = map_dbl(data, ~ nrow(.x)), ## 45 is not linear, but very minor
                     # first fit the mass 44 model to scale everything to 0 to max
                     ## lm_44 = map(data, purrr::possibly(~ lm(min_44 ~ max_44 - 1, data = .x), otherwise = em())),
-                    # TODO: first fix max_44 using this model, then fix the remainder?
                     # TODO: look into whether fitting a line through the origin works better? probably not, e.g. 45 behaves a bit non-linearly
                     ## max_44 = predict(lm_44, newdata = max_44),
-                    lm_45 = map(data, purrr::possibly(~ lm(min_45 ~ max_44, data = .x), otherwise = em())),
-                    lm_46 = map(data, purrr::possibly(~ lm(min_46 ~ max_44, data = .x), otherwise = em())),
-                    lm_47 = map(data, purrr::possibly(~ lm(min_47 ~ max_44, data = .x), otherwise = em())),
-                    lm_48 = map(data, purrr::possibly(~ lm(min_48 ~ max_44, data = .x), otherwise = em())),
-                    lm_49 = map(data, purrr::possibly(~ lm(min_49 ~ max_44, data = .x), otherwise = em())),
+                    lm_45 = map(data, purrr::possibly(~ lm(formula = min_45 ~ poly(max_44, 3, raw = TRUE) - 1, data = .x |> filter(!outlier_scan_manual)), otherwise = em())),
+                    lm_46 = map(data, purrr::possibly(~ lm(formula = min_46 ~ poly(max_44, 3, raw = TRUE) - 1, data = .x |> filter(!outlier_scan_manual)), otherwise = em())),
+                    lm_47 = map(data, purrr::possibly(~ lm(formula = min_47 ~ poly(max_44, 3, raw = TRUE) - 1, data = .x |> filter(!outlier_scan_manual)), otherwise = em())),
+                    lm_48 = map(data, purrr::possibly(~ lm(formula = min_48 ~ poly(max_44, 3, raw = TRUE) - 1, data = .x |> filter(!outlier_scan_manual)), otherwise = em())),
+                    lm_49 = map(data, purrr::possibly(~ lm(formula = min_49 ~ poly(max_44, 3, raw = TRUE) - 1, data = .x |> filter(!outlier_scan_manual)), otherwise = em())),
                     ## coef_44 = map(lm_44, "coefficients"), #otherwise = NA),
-                    coef_45 = map(lm_45, "coefficients"), #otherwise = NA),
-                    coef_46 = map(lm_46, "coefficients"),
-                    coef_47 = map(lm_47, "coefficients"),
-                    coef_48 = map(lm_48, "coefficients"),
-                    coef_49 = map(lm_49, "coefficients"),
-                    ## intercept_44 = map_dbl(coef_44, 1),
-                    intercept_45 = map_dbl(coef_45, 1),
-                    intercept_46 = map_dbl(coef_46, 1),
-                    intercept_47 = map_dbl(coef_47, 1),
-                    intercept_48 = map_dbl(coef_48, 1),
-                    intercept_49 = map_dbl(coef_49, 1),
-                    ## slope_44 = map_dbl(coef_44, 2),
-                    slope_45 = map_dbl(coef_45, 2),
-                    slope_46 = map_dbl(coef_46, 2),
-                    slope_47 = map_dbl(coef_47, 2),
-                    slope_48 = map_dbl(coef_48, 2),
-                    slope_49 = map_dbl(coef_49, 2)) %>%
-  tidylog::select(-starts_with("lm"), -starts_with("coef")) %>%
-  arrange(scan_datetime) %>%
-  tidylog::ungroup(scan_group) %>%
-  tidylog::mutate(scan_duration = c(lubridate::int_diff(scan_datetime), NA_real_)) %>%
-  tidylog::mutate(bg_group = scan_datetime %>% as.character()) %>%
+                    ## coef_45 = map(lm_45, "coefficients"), #otherwise = NA),
+                    ## coef_46 = map(lm_46, "coefficients"),
+                    ## coef_47 = map(lm_47, "coefficients"),
+                    ## coef_48 = map(lm_48, "coefficients"),
+                    ## coef_49 = map(lm_49, "coefficients"),
+                    ## ## intercept_44 = map_dbl(coef_44, 1),
+                    ## intercept_45 = map_dbl(coef_45, 1),
+                    ## intercept_46 = map_dbl(coef_46, 1),
+                    ## intercept_47 = map_dbl(coef_47, 1),
+                    ## intercept_48 = map_dbl(coef_48, 1),
+                    ## intercept_49 = map_dbl(coef_49, 1),
+                    ## ## slope_44 = map_dbl(coef_44, 2),
+                    ## slope_45 = map_dbl(coef_45, 2),
+                    ## slope_46 = map_dbl(coef_46, 2),
+                    ## slope_47 = map_dbl(coef_47, 2),
+                    ## slope_48 = map_dbl(coef_48, 2),
+                    ## slope_49 = map_dbl(coef_49, 2)
+                    ) |>
+  ## tidylog::select(-starts_with("lm"), -starts_with("coef")) |>
+  arrange(scan_datetime) |>
+  tidylog::ungroup(scan_group) |>
+  tidylog::mutate(scan_duration = c(lubridate::int_diff(scan_datetime), NA_real_)) |>
+  tidylog::mutate(bg_group = cut_scan_groups(scan_datetime, scan_datetime)) |>
   tidylog::filter(!is.na(bg_group))
 }
 
@@ -817,79 +840,106 @@ em <- function() {
   out
 }
 
+cut_scan_groups <- function(file, scan) {
+  cut(file,
+      # we need to make sure oldest and newest scans are also assigned a category
+      c(parse_datetime("1990-02-13 12:00:00"), # my birthday!
+        unique(scan),
+        lubridate::now(tzone = "UTC"))) |>
+    as.character()
+}
+
 add_scan_group <- function(info, bg) {
   if (nrow(bg) == 0) {
     warning("Could not match background, it's empty")
     return(info)
   }
 
-  cut_scan_groups <- function(file, scan) {
-    cut(file,
-        # we need to make sure oldest and newest scans are also assigned a category
-        c(parse_datetime("1990-02-13 12:00:00"), # my birthday!
-          scan,
-          lubridate::now())) %>%
-      as.character()
-  }
-
-  info %>%
-    ## tidylog::select(all_of(c("file_id", "file_datetime"))) %>%
-    tidylog::mutate(bg_group = cut_scan_groups(file_datetime, bg$scan_datetime)) %>%
-    ## tidylog::select(-file_datetime) %>%
-    tidylog::left_join(bg %>%
-                       select(-one_of("file_id", # needs to be removed because it's derived from the shitty ones
-                                      "scan_group_overwrite",
-                                      "outlier_scan_manual",
-                                      "checked_by",
-                                      "checked_date",
-                                      "checked_comment")) %>%
-                       mutate(bg_group = cut_scan_groups(scan_datetime, scan_datetime)),
-                       by = "bg_group")
+  info |>
+    ## tidylog::select(all_of(c("file_id", "file_datetime"))) |>
+    tidylog::mutate(bg_group = cut_scan_groups(file_datetime, bg$scan_datetime)) #|>
+    ## tidylog::select(-file_datetime) |>
+    ## tidylog::left_join(bg,
+    ##                    distinct(scan_datetime, bg_group),
+    ##                    # the background scans need to be cut up exactly the same as the files
+    ##                    ## mutate(bg_group = cut_scan_groups(scan_datetime, scan_datetime)),
+    ##                    by = "bg_group")
 }
 
-add_background_info <- function(data, info) {
+add_background_info <- function(data, bg) {
+  message("Info: adding background models")
   if (nrow(data) == 0L) {
     return(tibble(file_info = character()))
   }
 
-  data %>%
-    tidylog::left_join(info %>%
-                       select(bg_group, file_id,
+  data |>
+    tidylog::left_join(bg |>
+                       select(bg_group, #file_id,
                               starts_with("scan_"),
-                              starts_with("intercept_"),
-                              starts_with("slope_"), bg_fac), by = "file_id")
+                              ## starts_with("intercept_"),
+                              starts_with("lm_")#,
+                              ## starts_with("slope_"),
+                              ## bg_fac
+                              ),
+                       by = "bg_group") #"file_id"
 }
 
 correct_backgrounds_scn <- function(data, fac) {  #  = 0.91, masses = c(44:49, 54)
+  message("Info: correcting backgrounds using scan models")
   if (nrow(data) == 0L) {
     return(tibble(file_info = character()))
   }
 
-  out <- data %>%
-    ## manual new background corrections based on excel_bgd ~ mass 44
-    mutate_at(.vars = vars(one_of("s44", "r44")),
-              .funs = list(#bg44 = ~ {{fac}} * (. * slope_44 + intercept_44),
-                           bg45 = ~ {{fac}} * (. * slope_45 + intercept_45),
-                           bg46 = ~ {{fac}} * (. * slope_46 + intercept_46),
-                           bg47 = ~ {{fac}} * (. * slope_47 + intercept_47),
-                           bg48 = ~ {{fac}} * (. * slope_48 + intercept_48),
-                           bg49 = ~ {{fac}} * (. * slope_49 + intercept_49))) %>%
+  ## if (!all(c(paste0("slope_", 45:49),
+  ##            paste0("intercept_", 45:49)) %in% colnames(data))) {
+  ##   warning("Columns needed for background scans not found!")
+  ##   data <- data |>
+  ##     mutate(slope_45 = NA_real_,
+  ##            slope_46 = NA_real_,
+  ##            slope_47 = NA_real_,
+  ##            slope_48 = NA_real_,
+  ##            slope_49 = NA_real_,
+  ##            intercept_45 = NA_real_,
+  ##            intercept_46 = NA_real_,
+  ##            intercept_47 = NA_real_,
+  ##            intercept_48 = NA_real_,
+  ##            intercept_49 = NA_real_)
+  ## }
+
+  out <- data |>
+    mutate(s44_bg45 = map2_dbl(s44, lm_45, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           s44_bg46 = map2_dbl(s44, lm_46, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           s44_bg47 = map2_dbl(s44, lm_47, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           s44_bg48 = map2_dbl(s44, lm_48, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           s44_bg49 = map2_dbl(s44, lm_49, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x)))) |>
+    mutate(r44_bg45 = map2_dbl(r44, lm_45, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           r44_bg46 = map2_dbl(r44, lm_46, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           r44_bg47 = map2_dbl(r44, lm_47, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           r44_bg48 = map2_dbl(r44, lm_48, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x))),
+           r44_bg49 = map2_dbl(r44, lm_49, ~ purrr::possibly(predict, NA_real_)(.y, newdata = list(max_44 = .x)))) |>
+    ## mutate_at(.vars = vars(one_of("s44", "r44")),
+    ##           .funs = list(#bg44 = ~ {{fac}} * (. * slope_44 + intercept_44),
+    ##             bg45 = ~ {{fac}} * predict(lm_45, newdata = list(max_44 = .)),
+    ##             bg46 = ~ {{fac}} * predict(lm_46, newdata = list(max_44 = .)),
+    ##             bg47 = ~ {{fac}} * predict(lm_47, newdata = list(max_44 = .)),
+    ##             bg48 = ~ {{fac}} * predict(lm_48, newdata = list(max_44 = .)),
+    ##             bg49 = ~ {{fac}} * predict(lm_49, newdata = list(max_44 = .)))) |>
     mutate(
       ## s44_bg = ifelse(is.na(s44_bg44), s44, s44 - s44_bg44),
-      s45_bg = ifelse(is.na(s44_bg45), s45, s45 - s44_bg45),
-      s46_bg = ifelse(is.na(s44_bg46), s46, s46 - s44_bg46),
-      s47_bg = ifelse(is.na(s44_bg47), s47, s47 - s44_bg47),
-      s48_bg = ifelse(is.na(s44_bg48), s48, s48 - s44_bg48),
-      s49_bg = ifelse(is.na(s44_bg49), s49, s49 - s44_bg49),
+      s45_bg = ifelse(is.na(s44_bg45), s45, s45 - {{fac}} * s44_bg45),
+      s46_bg = ifelse(is.na(s44_bg46), s46, s46 - {{fac}} * s44_bg46),
+      s47_bg = ifelse(is.na(s44_bg47), s47, s47 - {{fac}} * s44_bg47),
+      s48_bg = ifelse(is.na(s44_bg48), s48, s48 - {{fac}} * s44_bg48),
+      s49_bg = ifelse(is.na(s44_bg49), s49, s49 - {{fac}} * s44_bg49),
       ## r44_bg = ifelse(is.na(r44_bg44), r44, r44 - r44_bg44),
-      r45_bg = ifelse(is.na(r44_bg45), r45, r45 - r44_bg45),
-      r46_bg = ifelse(is.na(r44_bg46), r46, r46 - r44_bg46),
-      r47_bg = ifelse(is.na(r44_bg47), r47, r47 - r44_bg47),
-      r48_bg = ifelse(is.na(r44_bg48), r48, r48 - r44_bg48),
-      r49_bg = ifelse(is.na(r44_bg49), r49, r49 - r44_bg49))
+      r45_bg = ifelse(is.na(r44_bg45), r45, r45 - {{fac}} * r44_bg45),
+      r46_bg = ifelse(is.na(r44_bg46), r46, r46 - {{fac}} * r44_bg46),
+      r47_bg = ifelse(is.na(r44_bg47), r47, r47 - {{fac}} * r44_bg47),
+      r48_bg = ifelse(is.na(r44_bg48), r48, r48 - {{fac}} * r44_bg48),
+      r49_bg = ifelse(is.na(r44_bg49), r49, r49 - {{fac}} * r44_bg49))
 
   if (sum(is.na(out$s44_bg47)) > 0) {
-    warning(glue::glue("{sum(!is.na(out$s45_bg))} out of {nrow(out)} intensities could not be assigned a background scan! Investigate!"))
+    warning(glue::glue("{sum(is.na(out$s44_bg47))} out of {nrow(out)} intensities could not be assigned a background scan! Investigate!"))
   }
 
   out
@@ -897,21 +947,37 @@ correct_backgrounds_scn <- function(data, fac) {  #  = 0.91, masses = c(44:49, 5
 
 parse_preparation_number <- function(data, col = sheet) {
   sheet <- NULL
-  data %>%
-    tidylog::mutate(Preparation = str_extract({{col}}, "_\\d+_") %>%
-             str_replace_all("_", "") %>%
+  data |>
+    tidylog::mutate(Preparation = str_extract({{col}}, "_\\d+_") |>
+             str_replace_all("_", "") |>
              parse_double())
 }
 
 string_scan_files <- function(data) {
-  data %>%
-    tidylog::mutate(scan_files = paste0(scan_files) %>%
+  data |>
+    tidylog::mutate(scan_files = paste0(scan_files) |>
              stringr::str_replace_all("c?\\(?\\\\?\",?\\)?", ""))
 }
 
+add_scan_info <- function(.data, .info, cols, quiet = clumpedr:::default(quiet)) {
+  if (nrow(.data) == 0) {
+    return(tibble(file_id = character()))
+  }
+
+  if (!"file_id" %in% cols) {
+    cols <- c("file_id", cols)
+  }
+
+  if (!quiet) {
+    message("Info: appending measurement information.")
+  }
+
+  left_join(x = .data, y = .info %>% select(tidyselect::all_of(cols)), by = "file_id")
+}
+
 export_scan_metadata <- function(data, meta, file) {
-   data %>%
-     tidylog::filter(scan_datetime > max(meta$scan_datetime, na.rm = TRUE)) %>%
+   data |>
+     tidylog::filter(scan_datetime > max(meta$scan_datetime, na.rm = TRUE)) |>
      tidylog::select(any_of(c("file_id",
                               "file_root",
                               "file_datetime",
@@ -937,16 +1003,16 @@ export_scan_metadata <- function(data, meta, file) {
                               "scan_files",
                               "scan_n",
                               "scan_duration",
-                              "intercept_45",
-                              "intercept_46",
-                              "intercept_47",
-                              "intercept_48",
-                              "intercept_49",
-                              "slope_45",
-                              "slope_46",
-                              "slope_47",
-                              "slope_48",
-                              "slope_49",
+                              ## "intercept_45",
+                              ## "intercept_46",
+                              ## "intercept_47",
+                              ## "intercept_48",
+                              ## "intercept_49",
+                              ## "slope_45",
+                              ## "slope_46",
+                              ## "slope_47",
+                              ## "slope_48",
+                              ## "slope_49",
                               "min",
                               "max",
                               "min_start_44",
@@ -962,9 +1028,9 @@ export_scan_metadata <- function(data, meta, file) {
                               "voltage_overwrite",
                               "checked_by",
                               "checked_date",
-                              "checked_comment"))) %>%
+                              "checked_comment"))) |>
      writexl::write_xlsx(file)
-   return(file)
+   file
 }
 
 filter_duplicated_raw_cycles <- function(.data) {
@@ -979,7 +1045,7 @@ add_mineralogy <- function(.data, info) {
     return(tibble(file_id = character()))
   }
 
-  .data %>%
+  .data |>
     tidylog::left_join(select(info, file_id, Mineralogy), by = "file_id")
 }
 
@@ -988,7 +1054,7 @@ add_R18 <- function(.data, min = Mineralogy) {
     return(tibble(file_id = character()))
   }
 
-  .data %>%
+  .data |>
     tidylog::mutate(R18_PDB = case_when(is.na({{min}}) ~ #{
       ## warning("No mineralogy specified, defaulting to Calcite") ;
       clumpedr:::default(R18_PDB), #},
@@ -1008,19 +1074,19 @@ summarize_d13C_d18O_D47 <- function(.data) {
     stop("'cycle_data' not found in data.")
   }
 
-  .data %>%
-    ## group_by(file_id) %>%
+  .data |>
+    ## group_by(file_id) |>
     mutate(summaries = map(.data$cycle_data,
-                           .f = ~ .x %>%
-                             filter(!outlier, !outlier_cycle) %>%
+                           .f = ~ .x |>
+                             filter(!outlier, !outlier_cycle) |>
                              dplyr::select(d45, d46, d47, d48, d49,
                                            d13C_PDB, d18O_PDB,
                                            D45_raw, D46_raw, D47_raw, D48_raw, D49_raw,
-                                           param_49) %>%
+                                           param_49) |>
                              dplyr::summarize_all(list(
                                       n = ~ length(.),  # get the number of cycles excluding the outliers
                                       mean = ~ mean(., na.rm = TRUE),
-                                      sd = ~ sd(., na.rm = TRUE))) %>%
+                                      sd = ~ sd(., na.rm = TRUE))) |>
                              # TODO: rewrite using dplyr 1.0.0's across()
                              mutate(n_ok = d45_n, d45_n = NULL, d46_n = NULL, # n is the same for all
                                     d47_n = NULL, d48_n = NULL,  d49_n = NULL,
@@ -1039,7 +1105,7 @@ summarize_d13C_d18O_D47 <- function(.data) {
                                     D47_raw_lwr = D47_raw_mean - D47_raw_cl,
                                     d13C_PDB_upr = d13C_PDB_mean + d13C_PDB_cl,
                                     d18O_PDB_upr = d18O_PDB_mean + d18O_PDB_cl,
-                                    D47_raw_upr = D47_raw_mean + D47_raw_cl))) %>%
+                                    D47_raw_upr = D47_raw_mean + D47_raw_cl))) |>
     unnest(cols = c(summaries))
 }
 
@@ -1068,6 +1134,10 @@ offset_correction <- function(.data, std = "ETH-3", grp = NULL,
                               off_avg, cor,
                               ## off_bin = offset_bin_D47, dur = 1.5 * 3600,
                               width = 7, out, min = 0.5, max = 0.9, quiet = clumpedr:::default(quiet)) {
+  if (nrow(.data) == 0L) {
+    return(tibble(file_id = character()))
+  }
+
     ## if (! "expected_D47" %in% colnames()) stop("First append_expected_values()")
   grp_info_str <- ifelse(is.null(grp) || is.na(grp), ", without grouping.", paste0(', grouped by ', grp))
   if (!quiet) message(glue::glue("Info: performing rolling offset correction for {quo_name(enquo(raw))} with width = {unique(width)} using standards {glue::glue_collapse(unique(std), sep = ' ', last = ' and ')}{grp_info_str}"))
@@ -1077,46 +1147,27 @@ offset_correction <- function(.data, std = "ETH-3", grp = NULL,
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
 
   if (is.null(grp) || is.na(grp)) {
-    .data %>%
+    .data |>
       mutate({{off}} := {{exp}} - {{raw}},
-             {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) %>%
-      ## summarize_outlier() %>%
+             {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
+      ## summarize_outlier() |>
       mutate({{off_good}} := ifelse(!outlier & (broadid %in% std), {{off}}, NA_real_),
              ## {{off_bin}} := seq_along(findInterval(file_datetime - dur, file_datetime)),
              {{off_avg}} := prm({{off_good}}, width, na.rm = TRUE, fill = "extend"),
              ## {{off_avg}} := zoo::rollapplyr({{off_good}}, {{off_bin}}, mean, na.rm = TRUE, fill = NA_real_),
-             {{cor}} := {{raw}} + {{off_avg}}) %>%
-      return()
+             {{cor}} := {{raw}} + {{off_avg}})
   } else {
-    .data %>%
+    .data |>
       mutate({{off}} := {{exp}} - {{raw}},
-             {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) %>%
-      ## summarize_outlier() %>%
-      group_by_at(grp) %>%
+             {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
+      ## summarize_outlier() |>
+      group_by_at(grp) |>
       mutate({{off_good}} := ifelse(!outlier & (broadid %in% std), {{off}}, NA_real_),
              {{off_avg}} := prm({{off_good}}, width, na.rm = TRUE, fill = "extend"),
-             {{cor}} := {{raw}} + {{off_avg}}) %>%
-      ungroup() %>%
-      return()
+             {{cor}} := {{raw}} + {{off_avg}}) |>
+      ungroup()
   }
 }
-
-fun <- function(str) {
-  outstr <- ifelse(is.null(str) || is.na(str), 'no group', paste0('WERKT ', str))
-  outstr
-  glue::glue("dit is de output {outstr}")
-}
-
-fun("hoi")
-fun(NA)
-fun(NULL)
-
-x <- "hoi"
-fun(x)
-y <- NULL
-fun(y)
-y <- NA
-fun(y)
 
 ##' Apply offset correction
 ##'
@@ -1132,9 +1183,9 @@ offset_correction_wrapper <- function(.data, acc) {
 
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
 
-  .data %>%
+  .data |>
     append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$D47, exp = expected_D47) %>%
+                           std_values = acc$D47, exp = expected_D47) |>
     offset_correction(std = str_split(.data$off_D47_stds, " ", simplify = TRUE),
                       grp = .data$off_D47_grp,
                       exp = expected_D47,
@@ -1146,13 +1197,13 @@ offset_correction_wrapper <- function(.data, acc) {
                       width = .data$off_D47_width,
                       out = outlier_offset_D47,
                       min = .data$off_D47_min,
-                      max = .data$off_D47_max) %>%
-    group_by(.data$preparation, .data$Line) %>%
+                      max = .data$off_D47_max) |>
+    group_by(.data$preparation, .data$Line) |>
     mutate(D47_offset_average_line = prm(D47_offset_good, .data$off_D47_width * 2, na.rm = TRUE, fill = "extend"),
-           D47_offset_corrected_line = D47_raw_mean + D47_offset_average_line) %>%
-    ungroup() %>%
+           D47_offset_corrected_line = D47_raw_mean + D47_offset_average_line) |>
+    ungroup() |>
     append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$d13C, exp = accepted_d13C) %>%
+                           std_values = acc$d13C, exp = accepted_d13C) |>
     offset_correction(std = str_split(.data$off_d13C_stds, " ", simplify = TRUE),
                       grp = .data$off_d13C_grp,
                       exp = accepted_d13C,
@@ -1164,14 +1215,14 @@ offset_correction_wrapper <- function(.data, acc) {
                       width = .data$off_d13C_width,
                       out = outlier_offset_d13C,
                       min = .data$off_d13C_min,
-                      max = .data$off_d13C_max) %>%
-    group_by(.data$Line) %>%
+                      max = .data$off_d13C_max) |>
+    group_by(.data$Line) |>
     mutate(d13C_offset_average_line = prm(d13C_offset_good, .data$off_d13C_width * 2, na.rm = TRUE, fill = "extend"),
-           d13C_offset_corrected_line = d13C_PDB_mean + d13C_offset_average_line) %>%
-    ungroup() %>%
+           d13C_offset_corrected_line = d13C_PDB_mean + d13C_offset_average_line) |>
+    ungroup() |>
     # d18O
     append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$d18O, exp = accepted_d18O) %>%
+                           std_values = acc$d18O, exp = accepted_d18O) |>
     offset_correction(std = str_split(.data$off_d18O_stds, " ", simplify = TRUE),
                       grp = .data$off_d18O_grp,
                       exp = accepted_d18O,
@@ -1183,10 +1234,10 @@ offset_correction_wrapper <- function(.data, acc) {
                       width = .data$off_d18O_width,
                       out = outlier_offset_d18O,
                       min = .data$off_d18O_min,
-                      max = .data$off_d18O_max) %>%
-    group_by(.data$Line) %>%
+                      max = .data$off_d18O_max) |>
+    group_by(.data$Line) |>
     mutate(d18O_offset_average_line = prm(d18O_offset_good, .data$off_d18O_width * 2, na.rm = TRUE, fill = "extend"),
-           d18O_offset_corrected_line = d18O_PDB_mean + d18O_offset_average_line) %>%
+           d18O_offset_corrected_line = d18O_PDB_mean + d18O_offset_average_line) |>
     ungroup()
 }
 
@@ -1210,8 +1261,8 @@ rolling_etf <- function(.data,
   ##   lengths <- unique(lengths)
   ## }
 
-  .data %>%
-    group_by({{grp}}) %>%
+  .data |>
+    group_by({{grp}}) |>
     mutate(
       x_good = ifelse(!outlier & broadid %in% str_split({{std}}, " ", simplify = TRUE),
                       {{x}}, NA_real_),
@@ -1225,18 +1276,19 @@ rolling_etf <- function(.data,
                 .stops = stops),
       # perhaps these two are the culprits that crash my laptop?
       {{intercept}} := map_dbl(fit, ~ coef(.x)[[1]]),
-      {{slope}} := map_dbl(fit, ~ coef(.x)[[2]])) %>%
-    ungroup({{grp}}) %>%
+      {{slope}} := map_dbl(fit, ~ coef(.x)[[2]])) |>
+    ungroup({{grp}}) |>
     tidylog::select(-one_of("x_good", "y_good", "fit"))
 }
 
 summarise_cycle_outliers <- function(.data) {
-  .data %>%
+  message("Info: summarizing cycle outliers")
+  .data |>
     mutate(
       # the number of cycles, including the outlier cycles (compare to n_ok)
       n_cyc = map_dbl(cycle_data,
-                      purrr::possibly(~ .x %>%
-                                        select(cycle) %>%
+                      purrr::possibly(~ .x |>
+                                        select(cycle) |>
                                         max(na.rm = TRUE),
                                       NA_real_)),
       prop_bad_cycles = map_dbl(cycle_data,
@@ -1249,15 +1301,15 @@ summarise_cycle_outliers <- function(.data) {
       ## outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit,
       outlier_internal_sd_D47_raw = D47_raw_sd > .data$sd_D47,
       outlier_internal_sd_d13C_PDB = d13C_PDB_sd > .data$sd_d13C,
-      outlier_internal_sd_d18O_PDB = d18O_PDB_sd > .data$sd_d18O) #%>%
-    ## mutate(manual_outlier = ifelse(is.na(manual_outlier), FALSE, manual_outlier)) %>%
-    ## rename(outlier_manual = manual_outlier) %>%
+      outlier_internal_sd_d18O_PDB = d18O_PDB_sd > .data$sd_d18O) #|>
+    ## mutate(manual_outlier = ifelse(is.na(manual_outlier), FALSE, manual_outlier)) |>
+    ## rename(outlier_manual = manual_outlier) |>
     ## clumpedr::summarise_outlier(quiet = TRUE)
     ## mutate(outlier = outlier_noscan | outlier_nodelta | (!is.na(outlier_cycles) & outlier_cycles))
 }
 
 create_reason_for_outlier <- function(.data) {
-  .data %>%
+  .data |>
     tidylog::mutate(reason_for_outlier =
                       paste0(ifelse(outlier_manual, paste("manual", ifelse(!is.na(checked_comment), checked_comment, " no_comment "), "\n"), ""),
                              ifelse(outlier_nodelta, "  noδ\n", ""),
@@ -1282,7 +1334,7 @@ create_reason_for_outlier <- function(.data) {
 }
 
 order_columns <- function(.data, extra = NULL) {
-  .data %>%
+  .data |>
     tidylog::select(tidyselect::one_of(c(
       # we want these all the way in the beginning for easy access and column blocking
       "Analysis",
@@ -1344,16 +1396,17 @@ order_columns <- function(.data, extra = NULL) {
       "scan_group",
       "scan_datetime",
       "bg_fac",
-      "intercept_45",
-      "intercept_46",
-      "intercept_47",
-      "intercept_48",
-      "intercept_49",
-      "slope_45",
-      "slope_46",
-      "slope_47",
-      "slope_48",
-      "slope_49",
+
+      ## "intercept_45",
+      ## "intercept_46",
+      ## "intercept_47",
+      ## "intercept_48",
+      ## "intercept_49",
+      ## "slope_45",
+      ## "slope_46",
+      ## "slope_47",
+      ## "slope_48",
+      ## "slope_49",
       "outlier_noscan",
 
       "cycle_data",
@@ -1499,6 +1552,7 @@ order_columns <- function(.data, extra = NULL) {
       "outlier_init",
 
       # empirical transfer function
+      "etf_grp",
       "etf_stds",
       "etf_width",
       "etf_slope_raw", # rolling no offset
@@ -1548,48 +1602,65 @@ add_remaining_meta <- function(data, meta) {
     return(tibble(file_id = character()))
   }
 
-  data %>%
-    ## mutate(Analysis = parse_integer(Analysis)) %>%
-    select(-one_of("Analysis")) %>% # some are giving us issues!
-    tidylog::full_join(meta,
-                       by = c("file_id",
-                              ## "Analysis",
-                              "bg_group",
-                              "bg_fac",
-                              "scan_group_overwrite",
-                              "scan_group",
-                              "scan_datetime",
-                              "scan_files",
-                              "scan_n",
-                              "scan_duration",
-                              "intercept_45",
-                              "intercept_46",
-                              "intercept_47",
-                              "intercept_48",
-                              "intercept_49",
-                              "slope_45",
-                              "slope_46",
-                              "slope_47",
-                              "slope_48",
-                              "slope_49",
-                              "d13C_PDB_wg",
-                              "d18O_PDBCO2_wg",
-                              "Mineralogy"
-                              ))
+  prefer_data <- c("bg_group", "bg_fac", "scan_group", "scan_datetime", "scan_group_overwrite",
+                   "scan_files", "scan_n", "scan_duration",
+                   "d13C_PDB_wg", "d18O_PDBCO2_wg",
+                   "Mineralogy")
+
+  data |>
+    # we need to convert to integer because that's the type we gave it in the cleaned-up metadata
+    mutate(Analysis = parse_integer(Analysis)) |>
+    ## select(-one_of("Analysis")) |> # some are giving us issues!
+    # we use a full join so that files that don't have any raw data are still included in the list!
+    tidylog::full_join(meta |>
+                       # remove the columns that are already there in the file info itself
+                       select(-any_of(prefer_data))
+                       # ,
+                       # we intentionally do NOT specify by what the matching occurs, since the columns
+                       # differ slightly between machines and file types
+                       ## by = c("file_id",
+                       ## ##        ## "Analysis",
+                       ##        "bg_group",
+                       ## ##        ## "bg_fac",
+                       ##        "scan_group_overwrite",
+                       ##        "scan_group",
+                       ##        "scan_datetime",
+                       ##        "scan_files",
+                       ##        "scan_n",
+                       ##        "scan_duration",
+                       ##        ## "lm_45",
+                       ##        ## "lm_46",
+                       ##        ## "lm_47",
+                       ##        ## "lm_48",
+                       ##        ## "lm_49",
+                       ##        ## "intercept_45",
+                       ##        ## "intercept_46",
+                       ##        ## "intercept_47",
+                       ##        ## "intercept_48",
+                       ##        ## "intercept_49",
+                       ##        ## "slope_45",
+                       ##        ## "slope_46",
+                       ##        ## "slope_47",
+                       ##        ## "slope_48",
+                       ##        ## "slope_49",
+                       ## "d13C_PDB_wg",
+                       ## "d18O_PDBCO2_wg",
+                       ## "Mineralogy")
+                       )
 }
 
 tar_excel <- function(dat, file) {
-  dat %>%
-    tidylog::filter(!is.na(Analysis)) %>%
-    rename(manual_outlier = outlier_manual) %>%
+  dat |>
+    tidylog::filter(!is.na(Analysis)) |>
+    rename(manual_outlier = outlier_manual) |>
     writexl::write_xlsx(path = file)
   file
 }
 
 tar_csv <- function(dat, file) {
-  dat %>%
-    tidylog::filter(!is.na(Analysis)) %>%
-    ## rename(manual_outlier = outlier_manual) %>% # do not rename for widget
+  dat |>
+    tidylog::filter(!is.na(Analysis)) |>
+    ## rename(manual_outlier = outlier_manual) |> # do not rename for widget
     readr::write_csv(file = file)
   file
 }

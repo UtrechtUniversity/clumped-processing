@@ -11,7 +11,7 @@ tar_option_set(packages = c(
                  "clumpedr",
                  "slider"
                ),
-               ## error = "workspace"  # uncomment if you want to save workspaces on crash
+               workspace_on_error = TRUE  # uncomment if you want to save workspaces on crash
                )
 options(crayon.enabled = FALSE)
 
@@ -31,10 +31,10 @@ list(
                                                         "date",
                                                         "text",
                                                         ## "text", "text", "text",
-                                                        rep("guess", 25))) %>%
+                                                        rep("guess", 25))) |>
                        mutate(datetime= paste(as.character(Date),
-                                              as.character(`Time start prep (heat PP from May 2019, unless otherwise stated)`) %>%
-                                              str_replace("^1899-12-31 ", "")) %>%
+                                              as.character(`Time start prep (heat PP from May 2019, unless otherwise stated)`) |>
+                                              str_replace("^1899-12-31 ", "")) |>
                                 lubridate::as_datetime())),
   tar_target(motu_maintenance, readxl::read_excel(motu_log_file,
                                                   sheet = "Maintenance  253plus",
@@ -45,17 +45,17 @@ list(
 ## These are the measurement files for the standards and the samples. That's 46 measurements per run/preparation/sequence.
 
 tar_target(motu_dids_paths_all,
-           list_files("motu/dids") %>%
-           file_info() %>%
-           remove_copies() %>%
+           list_files("motu/dids") |>
+           file_info() |>
+           remove_copies() |>
            batch_files(), # it now iterates over the directories
            iteration = "list",
            cue = tar_cue(mode = "always")
            ),
 tar_target(motu_dids_paths,
-           motu_dids_paths_all, # %>%
+           motu_dids_paths_all, # |>
            # this is to quickly play around with a subset
-           ## vctrs::vec_c() %>%
+           ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
 tar_target(motu_did_files, motu_dids_paths, format = "file", pattern = map(motu_dids_paths)),
@@ -65,17 +65,17 @@ tar_target(motu_did_files, motu_dids_paths, format = "file", pattern = map(motu_
 
 # scn files
 tar_target(motu_scn_paths_all,
-           list_files("motu/scn", ".scn$") %>%
-           file_info() %>%
-           remove_copies() %>%
+           list_files("motu/scn", ".scn$") |>
+           file_info() |>
+           remove_copies() |>
            batch_month(),
            iteration = "list",
            cue = tar_cue(mode = "always")
            ),
 tar_target(motu_scn_paths,
-           motu_scn_paths_all, ##  %>%
+           motu_scn_paths_all, ##  |>
            # small subset!
-           ## vctrs::vec_c() %>%
+           ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
 tar_target(motu_scn_files, motu_scn_paths, format = "file", pattern = map(motu_scn_paths)),
@@ -99,7 +99,7 @@ tar_target(motu_scn,
 ## This gets the raw data, i.e. individual cycles of intensities per mass, from the above files.
 
 tar_target(motu_raw,
-           iso_get_raw_data(motu_dids, include_file_info = Analysis), #%>%
+           iso_get_raw_data(motu_dids, include_file_info = Analysis), #|>
            # this now iterates over the folders, so it won't have to re-run this expensive function
            pattern = map(motu_dids),
            iteration = "list",
@@ -115,8 +115,8 @@ tar_target(motu_scn_raw,
 ## These files hold the current metadata fixes with desired parameters for data processing.
 
 tar_target(motu_meta_file, "dat/motu_metadata_parameters.xlsx", format = "file"),
-tar_target(motu_metadata, readxl::read_excel(motu_meta_file, guess_max = 1e5) %>%
-                          meta_fix_types() %>% # TODO: switch to parse_col_types?
+tar_target(motu_metadata, readxl::read_excel(motu_meta_file, guess_max = 1e5) |>
+                          meta_fix_types() |> # TODO: switch to parse_col_types?
                           tidylog::distinct(Analysis, ## file_id, # there are some with unique file_id's but the same file contents
                                             file_size, file_datetime, .keep_all = TRUE),
            format = "fst_tbl"),
@@ -149,16 +149,16 @@ tar_target(motu_scn_meta,
 ## process scans
 
 # TODO: import/export motu_scn_metadata so that I output all parameter columns
-tar_target(motu_scn_fix, motu_scn_raw %>%
-                        nest_by(file_id, file_root, file_datetime) %>%
+tar_target(motu_scn_fix, motu_scn_raw |>
+                        nest_by(file_id, file_root, file_datetime) |>
                         # this gets some metadata from the raw scan
-                        file_name_scn() %>%
+                        file_name_scn() |>
                         # this is a way to create the metadata file for the first time:
                         ## mutate(min = -500, max = 50000,
                         ##        min_start_44 = 9.392386, min_end_44 = 9.395270,
                         ##        min_start_45_49 = 9.424277, min_end_45_49 = 9.429723,
-                        ##        max_start = 9.464633, max_end = 9.468291) %>%
-                        add_info(motu_scn_meta,
+                        ##        max_start = 9.464633, max_end = 9.468291) |>
+                        add_scan_info(motu_scn_meta,
                                  c("min", "max",
                                    "min_start_44", "min_end_44",
                                    "min_start_45_49", "min_end_45_49",
@@ -169,28 +169,28 @@ tar_target(motu_scn_fix, motu_scn_raw %>%
                                    "voltage_overwrite",
                                    "checked_by",
                                    "checked_date",
-                                   "checked_comment"))  %>%
-                        fix_scan_meta() %>%
-                        unnest(cols = c(data)) %>%
+                                   "checked_comment"))  |>
+                        fix_scan_meta() |>
+                        unnest(cols = c(data)) |>
                         fix_motu_scans(),
            pattern = map(motu_scn_raw),
            iteration = "list",
            format = "qs"),
 
-tar_target(motu_scn_mod, motu_scn_fix %>%
-                         tidy_scans() %>%
-                         flag_scan_ranges() %>%
-                         flag_scan_capped() %>%
-                         calculate_min_max() %>%
+tar_target(motu_scn_mod, motu_scn_fix |>
+                         tidy_scans() |>
+                         flag_scan_ranges() |> # also gets rid of manual outliers
+                         flag_scan_capped() |>
+                         calculate_min_max() |>
                          # this combines the scans of the same scan_group into one row
                          calculate_scan_models(),
-                         ## unnest(data) %>%
+                         ## unnest(data) |>
            pattern = map(motu_scn_fix),
            iteration = "list",
            format = "qs"),
 
-tar_target(motu_scn_meta_update, export_scan_metadata(data = motu_scn_mod %>%
-                                                        bind_rows() %>%
+tar_target(motu_scn_meta_update, export_scan_metadata(data = motu_scn_mod |>
+                                                        bind_rows() |>
                                                         unnest(c(data, scan_files)),
                                                       meta = motu_scn_meta,
                                                       file = "out/motu_scn_metadata_update.xlsx"),
@@ -206,22 +206,23 @@ tar_target(motu_file_info_raw, extract_file_info(motu_dids),
            format = "qs"),
 
 ## # quickly subset to date range for experimenting with bg factor
-## tar_target(my_filter, motu_file_info_raw %>%
-##                    bind_rows() %>%
+## tar_target(my_filter, motu_file_info_raw |>
+##                    bind_rows() |>
 ##                    tidylog::filter(file_datetime > lubridate::ymd("2020-01-01"),
 ##                                    file_datetime < lubridate::ymd("2020-11-01"))
 ##            ),
 
-tar_target(motu_file_info, motu_file_info_raw %>%
-                           rowwise() %>%
+tar_target(motu_file_info, motu_file_info_raw |>
+                           rowwise() |>
                            # this adds all the _overwrite columns and manual_outlier etc.
                            # it also tries to get the Preparation number from the filename if it doesn't exist
-                           fix_metadata(motu_metadata, irms = "MotU-KielIV") %>%
+                           fix_metadata(motu_metadata, irms = "MotU-KielIV") |>
                            # this then applies them to calculate identifier_1 etc.
-                           overwrite_meta(stdnames = stdnames) %>%
-                           add_scan_group(motu_scn_mod %>% bind_rows()) %>%
+                           overwrite_meta(stdnames = stdnames) |>
+                           # this creates bg_group based on the file_datetime and the scan_datetime
+                           add_scan_group(motu_scn_mod |> bind_rows()) |>
                            # this adds the parameters that are now in motu_metadata in stead of parms
-                           add_parameters(motu_metadata) %>%
+                           add_parameters(motu_metadata) |>
                            rename(c("outlier_manual" = "manual_outlier")),
            pattern = map(motu_file_info_raw),
            iteration = "list",
@@ -230,19 +231,20 @@ tar_target(motu_file_info, motu_file_info_raw %>%
 # this is a subset target so that the raw part only needs to be run when these
 # specific metadata are updated
 tar_target(motu_raw_file_info,
-           motu_file_info %>%
-           bind_rows() %>%
-           select(file_id,
+           motu_file_info |>
+           bind_rows() |>
+           select(Analysis, file_id,
                   dis_min, dis_max, dis_fac, dis_rel, # cycle_filter
-                  bg_group, starts_with("scan_"), starts_with("intercept_"), starts_with("slope_"), bg_fac,
+                  bg_group, starts_with("scan_"), #starts_with("lm_"), #starts_with("slope_"),
+                  bg_fac,
                   d13C_PDB_wg, d18O_PDBCO2_wg,
                   Mineralogy),
            pattern = map(motu_file_info),
            iteration = "list"),
 
-tar_target(motu_badruns, motu_file_info %>% bind_rows() %>% find_bad_runs()),
+tar_target(motu_badruns, motu_file_info |> bind_rows() |> find_bad_runs()),
 
-tar_target(motu_meta_update, export_metadata(data = motu_file_info %>%
+tar_target(motu_meta_update, export_metadata(data = motu_file_info |>
                                                bind_rows(),
                                              meta = motu_metadata,
                                              file = "out/motu_metadata_update.xlsx"),
@@ -252,44 +254,47 @@ tar_target(motu_meta_update, export_metadata(data = motu_file_info %>%
 ## Most of the computations have already landed in [[https://github.com/isoverse/clumpedr/][my clumpedr]] package, but we do have some tricks here that I've found not to be general enough for sharing with the wider community, such as offset correction.
 ## I've made the calls to ~clumpedr~ explicit with ~::~ so that it is clear which functions are mainained in this repository and which ones are in the other package.
 
-tar_target(motu_raw_deltas, motu_raw %>%
+tar_target(motu_raw_deltas, motu_raw |>
                              # write a wrapper function for this so that the targets are simpler
                              # TODO figure out how to loop over two separate lists of both raw and meta info
                              add_info(motu_raw_file_info,
-                                      c("dis_min", "dis_max", "dis_fac", "dis_rel")) %>%
+                                      c("dis_min", "dis_max", "dis_fac", "dis_rel")) |>
                              clumpedr::find_bad_cycles(min = dis_min,
                                                        max = dis_max,
                                                        fac = dis_fac,
                                                        # TODO: get relative_to parms call to work based on dataframe itself
-                                                       relative_to = "init") %>%
-                             filter_duplicated_raw_cycles() %>%
-                             clumpedr::spread_match() %>%
-                             add_background_info(motu_raw_file_info) %>%
+                                                       relative_to = "init") |>
+                             filter_duplicated_raw_cycles() |>
+                             clumpedr::spread_match() |>
+                             add_info(.info = motu_raw_file_info, cols = c("bg_group", "bg_fac")) |>
+                             add_background_info(motu_scn_mod |> bind_rows()) |>
                              # TODO: use neighbouring scans before and after sample to get rid of scan noise?
-                             correct_backgrounds_scn(fac = .data$bg_fac) %>%
+                             correct_backgrounds_scn(fac = .data$bg_fac) |>
+                             # remove the scan models because they take up a lot of memory as list columns
+                             select(-starts_with("lm_")) |>
                              add_info(.info = motu_raw_file_info,
-                                      c("d13C_PDB_wg", "d18O_PDBCO2_wg")) %>%
-                             clumpedr::abundance_ratios(s44, s45_bg, s46_bg, s47_bg, s48_bg, s49_bg) %>%
+                                      c("d13C_PDB_wg", "d18O_PDBCO2_wg")) |>
+                             clumpedr::abundance_ratios(s44, s45_bg, s46_bg, s47_bg, s48_bg, s49_bg) |>
                              clumpedr::abundance_ratios(r44, r45_bg, r46_bg, r47_bg, r48_bg, r49_bg,
-                                                        R45_wg, R46_wg, R47_wg, R48_wg, R49_wg) %>%
-                             clumpedr::little_deltas() %>%
-                             add_info(motu_raw_file_info, c("Mineralogy")) %>%
-                             add_R18() %>%
+                                                        R45_wg, R46_wg, R47_wg, R48_wg, R49_wg) |>
+                             clumpedr::little_deltas() |>
+                             add_info(motu_raw_file_info, c("Mineralogy")) |>
+                             add_R18() |>
                              # TODO check if this works for dolomite samples, not sure if vectorized
-                             clumpedr::bulk_and_clumping_deltas(R18_PDB = .data$R18_PDB) %>%
+                             clumpedr::bulk_and_clumping_deltas(R18_PDB = .data$R18_PDB) |>
                              # outlier on the cycle level now contains all the reasons for cycle outliers
                              clumpedr::summarise_outlier(quiet = TRUE),
             # TODO: exclude values mass 54/48/49 < -490
             # TODO: decide whether p49 can be ignored here? I think so because we're doing it at sample level now
-            ## add_info(motu_file_info %>% bind_rows(), c("Analysis", "p49_crit")) %>%
-            ## clumpedr::find_R_flags() %>%  # TODO: get rid of R_flags? do they find anything of value?
+            ## add_info(motu_file_info |> bind_rows(), c("Analysis", "p49_crit")) |>
+            ## clumpedr::find_R_flags() |>  # TODO: get rid of R_flags? do they find anything of value?
             pattern = map(motu_raw, motu_raw_file_info),
             iteration = "list",
             format = "qs"),
 
  # nesting and summarising still happens within each folder, because this is slow for the big db
- tar_target(motu_nested, motu_raw_deltas %>%
-                         clumpedr::nest_cycle_data() %>%
+ tar_target(motu_nested, motu_raw_deltas |>
+                         clumpedr::nest_cycle_data() |>
                          summarize_d13C_d18O_D47(),
            pattern = map(motu_raw_deltas),
            iteration = "list",
@@ -297,30 +302,34 @@ tar_target(motu_raw_deltas, motu_raw %>%
 
 ## sample level summaries
 tar_target(motu_sample_level,
-           motu_nested %>%
-           bind_rows() %>%  # finally the data are rbinded into one big df!
-           add_remaining_meta(motu_file_info %>% bind_rows()) %>%
-           clumpedr::find_init_outliers(init_low = init_low,
-                                        init_high = init_high,
-                                        init_diff = init_diff) %>%
-           summarise_cycle_outliers() %>%
-           mutate(outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit) %>%
-           ## summarize_outlier() %>%
+           motu_nested |>
+           bind_rows() |>  # finally the data are rbinded into one big df!
+           string_scan_files() |>
+           add_remaining_meta(motu_file_info |> bind_rows()) |>
+           # there are 24 measurements for motu that are so messed up
+           # that they cannot be matched by both file_id and Analysis somehow
+           tidylog::filter(!is.na(init_low)) |>
+           clumpedr::find_init_outliers(init_low = .data$init_low,
+                                        init_high = .data$init_high,
+                                        init_diff = .data$init_diff) |>
+           summarise_cycle_outliers() |>
+           mutate(outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit) |>
+           ## summarize_outlier() |>
            # try out conservative outlier selection
            mutate(outlier = outlier_noscan | outlier_nodelta |
                     (!is.na(outlier_cycles) & outlier_cycles) |
                     (!is.na(outlier_init) & outlier_init) |
-                    (!is.na(outlier_manual) & outlier_manual)) %>%
+                    (!is.na(outlier_manual) & outlier_manual)) |>
            # get rid of raw cycle data
-           ## select(-cycle_data) %>%
-           select(-where(is.list)) %>%
-           arrange(file_datetime) %>%
+           ## select(-cycle_data) |>
+           tidylog::select(-where(is.list)) |>
+           arrange(file_datetime) |>
            # get rid of duplicated rows
-           tidylog::distinct(Analysis, file_id, file_size, s44_init, r44_init, .keep_all = TRUE) %>%
+           tidylog::distinct(Analysis, file_id, file_size, s44_init, r44_init, .keep_all = TRUE) |>
            offset_correction_wrapper(acc = accepted_standard_values),
            format = "fst_tbl"),
 
-tar_target(motu_temperature, motu_sample_level %>%
+tar_target(motu_temperature, motu_sample_level |>
                              # there are many ways of calculating the ETF
                              ## raw session
                              clumpedr:::calculate_etf(raw = D47_raw_mean,
@@ -329,7 +338,7 @@ tar_target(motu_temperature, motu_sample_level %>%
                                                       etf = etf,
                                                       etf_coefs = etf_coefs,
                                                       slope = etf_slope_grp,
-                                                      intercept = etf_intercept_grp) %>%
+                                                      intercept = etf_intercept_grp) |>
                              ## offset corrected session
                              clumpedr:::calculate_etf(raw = D47_offset_corrected,
                                                       exp = expected_D47,
@@ -337,29 +346,29 @@ tar_target(motu_temperature, motu_sample_level %>%
                                                       etf = etf_off,
                                                       etf_coefs = etf_coefs_off,
                                                       slope = etf_slope_grp_off,
-                                                      intercept = etf_intercept_grp_off) %>%
+                                                      intercept = etf_intercept_grp_off) |>
                              ## raw rolling, 201
                              rolling_etf(x = expected_D47, y = D47_raw_mean,
                                          std = etf_stds, width = etf_width,
                                          slope = etf_slope_raw,
-                                         intercept = etf_intercept_raw) %>%
+                                         intercept = etf_intercept_raw) |>
                              ## offset rolling, 201
                              rolling_etf(x = expected_D47,
                                          y = D47_offset_corrected,
                                          std = etf_stds, width = etf_width,
                                          slope = etf_slope,
-                                         intercept = etf_intercept) %>%
-                             apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) %>%
-                             apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) %>%
-                             apply_etf(intercept = etf_intercept_grp, slope = etf_slope_grp, raw = D47_raw_mean, out = D47_final_no_offset) %>%
-                             apply_etf(intercept = etf_intercept_grp_off, slope = etf_slope_grp_off, raw = D47_offset_corrected, out = D47_final) %>%
+                                         intercept = etf_intercept) |>
+                             apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) |>
+                             apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) |>
+                             apply_etf(intercept = etf_intercept_grp, slope = etf_slope_grp, raw = D47_raw_mean, out = D47_final_no_offset) |>
+                             apply_etf(intercept = etf_intercept_grp_off, slope = etf_slope_grp_off, raw = D47_offset_corrected, out = D47_final) |>
                              temperature_calculation(D47 = D47_final, slope = .data$temperature_slope,
-                                                     intercept = .data$temperature_intercept) %>%
+                                                     intercept = .data$temperature_intercept) |>
                              temperature_calculation(D47 = D47_final_no_offset, temp = temperature_no_offset,
-                                                     slope = .data$temperature_slope, intercept = .data$temperature_intercept) %>%
-                             create_reason_for_outlier() %>%
-                             select(-where(is.list)) %>% # this might solve hanging?
-                             order_columns() %>%
+                                                     slope = .data$temperature_slope, intercept = .data$temperature_intercept) |>
+                             create_reason_for_outlier() |>
+                             select(-where(is.list)) |> # this might solve hanging?
+                             order_columns() |>
                              arrange(file_datetime),
            format = "qs"),
 
@@ -374,17 +383,17 @@ tar_target(motu_export_csv, tar_csv(motu_temperature, "out/motu_all_data_RAW.csv
 ## did files
 
 tar_target(pacman_dids_paths_all,
-           list_files("pacman/dids") %>%
-           file_info() %>%
-           remove_copies() %>%
+           list_files("pacman/dids") |>
+           file_info() |>
+           remove_copies() |>
            batch_files(), # it now iterates over the directories
            iteration = "list",
            cue = tar_cue(mode = "always")
            ),
 tar_target(pacman_dids_paths,
-           pacman_dids_paths_all, # %>%
+           pacman_dids_paths_all, # |>
            # this is to quickly play around with a subset
-           ## vctrs::vec_c() %>%
+           ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
 tar_target(pacman_did_files, pacman_dids_paths, format = "file", pattern = map(pacman_dids_paths)),
@@ -392,17 +401,17 @@ tar_target(pacman_did_files, pacman_dids_paths, format = "file", pattern = map(p
 ## caf files
 
 tar_target(pacman_caf_paths_all,
-           list_files("pacman/cafs", ".caf$") %>%
-           file_info() %>%
-           remove_copies() %>%
+           list_files("pacman/cafs", ".caf$") |>
+           file_info() |>
+           remove_copies() |>
            batch_files(), # it now iterates over the directories
            iteration = "list",
            cue = tar_cue(mode = "always")
            ),
 tar_target(pacman_caf_paths,
-           pacman_caf_paths_all, # %>%
+           pacman_caf_paths_all, # |>
            # this is to quickly play around with a subset
-           ## vctrs::vec_c() %>%
+           ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
 tar_target(pacman_caf_files, pacman_caf_paths, format = "file", pattern = map(pacman_caf_paths)),
@@ -411,17 +420,17 @@ tar_target(pacman_caf_files, pacman_caf_paths, format = "file", pattern = map(pa
 
 # scn files
 tar_target(pacman_scn_paths_all,
-           list_files("pacman/scn", ".scn$") %>%
-           file_info() %>%
-           remove_copies() %>%
+           list_files("pacman/scn", ".scn$") |>
+           file_info() |>
+           remove_copies() |>
            batch_month(),
            iteration = "list",
            cue = tar_cue(mode = "always")
            ),
 tar_target(pacman_scn_paths,
-           pacman_scn_paths_all, ##  %>%
+           pacman_scn_paths_all, ##  |>
            # small subset!
-           ## vctrs::vec_c() %>%
+           ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
 tar_target(pacman_scn_files, pacman_scn_paths, format = "file", pattern = map(pacman_scn_paths)),
@@ -447,14 +456,14 @@ tar_target(pacman_scn,
 ## extract raw data
 
 tar_target(pacman_caf_raw,
-           iso_get_raw_data(pacman_cafs, include_file_info = Analysis), #%>%
+           iso_get_raw_data(pacman_cafs, include_file_info = Analysis), #|>
            # this now iterates over the folders, so it won't have to re-run this expensive function
            pattern = map(pacman_cafs),
            iteration = "list",
            format = "qs"),
 
 tar_target(pacman_raw,
-           iso_get_raw_data(pacman_dids, include_file_info = Analysis), #%>%
+           iso_get_raw_data(pacman_dids, include_file_info = Analysis), #|>
            # this now iterates over the folders, so it won't have to re-run this expensive function
            pattern = map(pacman_dids),
            iteration = "list",
@@ -469,15 +478,17 @@ tar_target(pacman_scn_raw,
 ## read in metadata
 
 tar_target(pacman_did_meta_file, "dat/pacman_did_metadata_parameters.xlsx", format = "file"),
-tar_target(pacman_metadata, readxl::read_excel(pacman_did_meta_file, guess_max = 1e5) %>%
-                          meta_fix_types() %>% # TODO: switch to parse_col_types?
+tar_target(pacman_metadata, readxl::read_excel(pacman_did_meta_file, guess_max = 1e5) |>
+                          meta_fix_types() |> # TODO: switch to parse_col_types?
                           tidylog::distinct(Analysis, ## file_id, # there are some with unique file_id's but the same file contents
                                             file_size, file_datetime, .keep_all = TRUE),
            format = "fst_tbl"),
 
 tar_target(pacman_caf_meta_file, "dat/pacman_caf_metadata_parameters.xlsx", format = "file"),
-tar_target(pacman_caf_metadata, readxl::read_excel(pacman_caf_meta_file, guess_max = 1e5) %>%
-                          meta_fix_types() %>% # TODO: switch to parse_col_types?
+tar_target(pacman_caf_metadata, readxl::read_excel(pacman_caf_meta_file, guess_max = 1e5) |>
+                          meta_fix_types() |> # TODO: switch to parse_col_types?
+                          # hardcoded hack to deal with weight inconsistencies
+                          ## mutate(`Weight [mg]` = as.character(`Weight [mg]`)) |>
                           tidylog::distinct(Analysis, ## file_id, # there are some with unique file_id's but the same file contents
                                             file_size, file_datetime, .keep_all = TRUE),
            format = "fst_tbl"),
@@ -490,16 +501,16 @@ tar_target(pacman_scn_meta,
 ## process scans
 
 # TODO: import/export pacman_scn_metadata so that I output all parameter columns
-tar_target(pacman_scn_fix, pacman_scn_raw %>%
-                        nest_by(file_id, file_root, file_datetime) %>%
+tar_target(pacman_scn_fix, pacman_scn_raw |>
+                        nest_by(file_id, file_root, file_datetime) |>
                         # this gets some metadata from the raw scan
-                        file_name_scn() %>%
+                        file_name_scn() |>
                         # this is a way to create the metadata file for the first time:
                         ## mutate(min = -500, max = 50000,
                         ##        min_start_44 = 9.392386, min_end_44 = 9.395270,
                         ##        min_start_45_49 = 9.424277, min_end_45_49 = 9.429723,
-                        ##        max_start = 9.464633, max_end = 9.468291) %>%
-                        add_info(pacman_scn_meta,
+                        ##        max_start = 9.464633, max_end = 9.468291) |>
+                        add_scan_info(pacman_scn_meta,
                                  c("min", "max",
                                    "min_start_44", "min_end_44",
                                    "min_start_45_49", "min_end_45_49",
@@ -510,20 +521,21 @@ tar_target(pacman_scn_fix, pacman_scn_raw %>%
                                    "voltage_overwrite",
                                    "checked_by",
                                    "checked_date",
-                                   "checked_comment"))  %>%
-                        fix_scan_meta() %>%
-                        unnest(cols = c(data)) %>%
+                                   "checked_comment"))  |>
+                        fix_scan_meta() |>
+                        unnest(cols = c(data)) |>
                         fix_motu_scans(), # this hopefully does nothing here!
            pattern = map(pacman_scn_raw),
            iteration = "list",
            format = "qs"),
 
-tar_target(pacman_scn_mod, pacman_scn_fix %>%
-                         tidy_scans() %>%
-                         flag_scan_ranges() %>%
-                         calculate_min_max() %>%
+tar_target(pacman_scn_mod, pacman_scn_fix |>
+                         tidy_scans() |>
+                         flag_scan_ranges() |>
+                         flag_scan_capped() |>
+                         calculate_min_max() |>
                          calculate_scan_models(),
-                         ## unnest(data) %>%
+                         ## unnest(data) |>
            pattern = map(pacman_scn_fix),
            iteration = "list",
            format = "qs"),
@@ -542,29 +554,36 @@ tar_target(pacman_caf_file_info_raw, extract_file_info(pacman_cafs),
            iteration = "list",
            format = "qs"),
 
-tar_target(pacman_file_info, pacman_file_info_raw %>%
-                             rowwise() %>%
+tar_target(pacman_file_info, pacman_file_info_raw |>
+                             rowwise() |>
                              # this adds all the _overwrite columns and manual_outlier etc.
-                             fix_metadata(pacman_metadata, irms = "Pacman-KielIV") %>%
+                             fix_metadata(pacman_metadata, irms = "Pacman-KielIV") |>
                              # this then applies them to calculate identifier_1 etc.
-                             overwrite_meta(stdnames = stdnames) %>%
-                             add_scan_group(pacman_scn_mod %>% bind_rows()) %>%
+                             overwrite_meta(stdnames = stdnames) |>
+                             add_scan_group(pacman_scn_mod |>
+                                            bind_rows() |>
+                                            tidylog::distinct(scan_datetime, .keep_all = TRUE) |>
+                                            tidylog::filter(!is.na(scan_group), !is.na(lm_47))) |>
                              # this adds the parameters that are now in pacman_metadata in stead of parms
-                             add_parameters(pacman_metadata) %>%
+                             add_parameters(pacman_metadata) |>
                              rename(c("outlier_manual" = "manual_outlier")),
            pattern = map(pacman_file_info_raw),
            iteration = "list",
            format = "qs"),
 
-tar_target(pacman_caf_file_info, pacman_caf_file_info_raw %>%
-                             rowwise() %>%
+tar_target(pacman_caf_file_info, pacman_caf_file_info_raw |>
+                                 # I don't fully understand why, but it does the mutate for whole preparations otherwise, resulting in duplicated identifier_1s
+                             rowwise() |>
                              # this adds all the _overwrite columns and manual_outlier etc.
-                             fix_metadata(pacman_caf_metadata, irms = "Pacman-KielIII") %>%
+                             fix_metadata(pacman_caf_metadata, irms = "Pacman-KielIII") |>
                              # this then applies them to calculate identifier_1 etc.
-                             overwrite_meta(stdnames = stdnames) %>%
-                             add_scan_group(pacman_scn_mod %>% bind_rows()) %>%
+                             overwrite_meta(stdnames = stdnames) |>
+                             add_scan_group(pacman_scn_mod |>
+                                            bind_rows() |>
+                                            tidylog::distinct(scan_datetime, .keep_all = TRUE) |>
+                                            tidylog::filter(!is.na(scan_group), !is.na(lm_47))) |>
                              # this adds the parameters that are now in pacman_metadata in stead of parms
-                             add_parameters(pacman_caf_metadata) %>%
+                             add_parameters(pacman_caf_metadata) |>
                              rename(c("outlier_manual" = "manual_outlier")),
            pattern = map(pacman_caf_file_info_raw),
            iteration = "list",
@@ -574,74 +593,213 @@ tar_target(pacman_caf_file_info, pacman_caf_file_info_raw %>%
 # this is a subset target so that the raw part only needs to be run when these
 # specific metadata are updated
 tar_target(pacman_raw_file_info,
-           pacman_file_info %>%
-           bind_rows() %>%
+           pacman_file_info |>
+           bind_rows() |>
            select(file_id,
                   dis_min, dis_max, dis_fac, dis_rel, # cycle_filter
-                  bg_group, starts_with("scan_"), starts_with("intercept_"), starts_with("slope_"), bg_fac,
+                  bg_group, starts_with("scan_"), starts_with("lm_"), #starts_with("slope_"),
+                  bg_fac,
                   d13C_PDB_wg, d18O_PDBCO2_wg,
                   Mineralogy),
            pattern = map(pacman_file_info),
            iteration = "list"),
 
-tar_target(pacman_badruns, pacman_file_info %>% bind_rows() %>% find_bad_runs()),
+tar_target(pacman_caf_raw_file_info,
+           pacman_caf_file_info |>
+           bind_rows() |>
+           select(file_id,
+                  dis_min, dis_max, dis_fac, dis_rel, # cycle_filter
+                  bg_group, starts_with("scan_"), starts_with("lm_"), #starts_with("slope_"),
+                  bg_fac,
+                  d13C_PDB_wg, d18O_PDBCO2_wg,
+                  Mineralogy),
+           pattern = map(pacman_caf_file_info),
+           iteration = "list"),
+
+tar_target(pacman_badruns, pacman_file_info |> bind_rows() |> find_bad_runs()),
 # creating pacman_caf_badruns doesn't make sense as the caf files do not have Preparation info
 
-tar_target(pacman_meta_export, export_metadata(data = pacman_file_info %>%
+tar_target(pacman_meta_update, export_metadata(data = pacman_file_info |>
                                                bind_rows(),
                                              meta = pacman_metadata,
                                              file = "out/pacman_metadata_update.xlsx"),
            format = "file"),
 
-# TODO: make this export work when adding new scans
-tar_target(pacman_scn_meta_export, pacman_scn_mod %>%
-                                 bind_rows() %>%
-                                 unnest(cols = c(data)) %>%
-                                 rename(c("manual_outlier" = "outlier_scan_manual")) %>%
-                                 string_scan_files() %>%
-                                 export_scan_metadata(meta = pacman_scn_meta,
-                                             file = "out/pacman_scn_metadata_update.xlsx"),
+tar_target(pacman_caf_meta_update, export_metadata(data = pacman_caf_file_info |>
+                                               bind_rows(),
+                                             meta = pacman_caf_metadata,
+                                             file = "out/pacman_caf_metadata_update.xlsx"),
            format = "file"),
 
-## raw deltas
+tar_target(pacman_scn_meta_update, export_scan_metadata(data = pacman_scn_mod |>
+                                                          bind_rows() |>
+                                                          unnest(c(data, scan_files)),
+                                                        meta = pacman_scn_meta,
+                                                        file = "out/pacman_scn_metadata_update.xlsx"),
+           format = "file"),
 
-tar_target(pacman_raw_deltas, pacman_raw %>%
+## pacman caf
+
+tar_target(pacman_caf_raw_deltas, pacman_caf_raw |>
                              # write a wrapper function for this so that the targets are simpler
                              # TODO figure out how to loop over two separate lists of both raw and meta info
-                             add_info(pacman_raw_file_info,
-                                      c("dis_min", "dis_max", "dis_fac", "dis_rel")) %>%
+                             add_info(pacman_caf_raw_file_info,
+                                      c("dis_min", "dis_max", "dis_fac", "dis_rel")) |>
                              clumpedr::find_bad_cycles(min = dis_min,
                                                        max = dis_max,
                                                        fac = dis_fac,
                                                        # TODO: get relative_to parms call to work based on dataframe itself
-                                                       relative_to = "init") %>%
-                             filter_duplicated_raw_cycles() %>%
-                             clumpedr::spread_match(masses = 44:49) %>%
-                             add_background_info(pacman_raw_file_info) %>%
+                                                       relative_to = "init") |>
+                             filter_duplicated_raw_cycles() |>
+                             clumpedr::spread_match(masses = 44:49) |>
+                             add_info(.info = pacman_caf_raw_file_info, cols = c("bg_group", "bg_fac")) |>
+                             add_background_info(pacman_scn_mod |> bind_rows()) |>
                              # TODO: use neighbouring scans before and after sample to get rid of scan noise?
-                             correct_backgrounds_scn(fac = .data$bg_fac) %>%
-                             add_info(.info = pacman_raw_file_info,
-                                      c("d13C_PDB_wg", "d18O_PDBCO2_wg")) %>%
-                             clumpedr::abundance_ratios(s44, s45_bg, s46_bg, s47_bg, s48_bg, s49_bg) %>%
+                             correct_backgrounds_scn(fac = .data$bg_fac) |>
+                             # remove the scan models because they take up a lot of memory as list columns
+                             select(-starts_with("lm_")) |>
+                             add_info(.info = pacman_caf_raw_file_info,
+                                      c("d13C_PDB_wg", "d18O_PDBCO2_wg")) |>
+                             clumpedr::abundance_ratios(s44, s45_bg, s46_bg, s47_bg, s48_bg, s49_bg) |>
                              clumpedr::abundance_ratios(r44, r45_bg, r46_bg, r47_bg, r48_bg, r49_bg,
-                                                        R45_wg, R46_wg, R47_wg, R48_wg, R49_wg) %>%
-                             clumpedr::little_deltas() %>%
-                             add_info(pacman_raw_file_info, c("Mineralogy")) %>%
-                             add_R18() %>%
+                                                        R45_wg, R46_wg, R47_wg, R48_wg, R49_wg) |>
+                             clumpedr::little_deltas() |>
+                             add_info(pacman_caf_raw_file_info, c("Mineralogy")) |>
+                             add_R18() |>
                              # TODO check if this works for dolomite samples, not sure if vectorized
-                             clumpedr::bulk_and_clumping_deltas(R18_PDB = .data$R18_PDB) %>%
+                             clumpedr::bulk_and_clumping_deltas(R18_PDB = .data$R18_PDB) |>
                              clumpedr::summarise_outlier(quiet = TRUE),
             # TODO: exclude values mass 54/48/49 < -490
             # TODO: decide whether p49 can be ignored here? I think so because we're doing it at sample level now
-            ## add_info(pacman_file_info %>% bind_rows(), c("Analysis", "p49_crit")) %>%
-            ## clumpedr::find_R_flags() %>%  # TODO: get rid of R_flags? do they find anything of value?
+            ## add_info(pacman_caf_file_info |> bind_rows(), c("Analysis", "p49_crit")) |>
+            ## clumpedr::find_R_flags() |>  # TODO: get rid of R_flags? do they find anything of value?
+            pattern = map(pacman_caf_raw, pacman_caf_raw_file_info),
+            iteration = "list",
+            format = "qs"),
+
+ # nesting and summarising still happens within each folder, because this is slow for the big db
+ tar_target(pacman_caf_nested, pacman_caf_raw_deltas |>
+                         clumpedr::nest_cycle_data(masses = 44:49) |>
+                         summarize_d13C_d18O_D47(),
+           pattern = map(pacman_caf_raw_deltas),
+           iteration = "list",
+           format = "qs"),
+
+## sample level summaries
+tar_target(pacman_caf_sample_level,
+           pacman_caf_nested |>
+           bind_rows() |>  # finally the data are rbinded into one big df!
+           string_scan_files() |>
+           add_remaining_meta(pacman_caf_file_info |> bind_rows()) |>
+           # there are 21 measurements for pacman_caf that are so messed up
+           # that they cannot be matched by both file_id and Analysis somehow
+           tidylog::filter(!is.na(init_low)) |>
+           clumpedr::find_init_outliers(init_low = init_low,
+                                        init_high = init_high,
+                                        init_diff = init_diff) |>
+           summarise_cycle_outliers() |>
+           mutate(outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit) |>
+           ## summarize_outlier() |>
+           # try out conservative outlier selection
+           mutate(outlier = outlier_noscan | outlier_nodelta |
+                    (!is.na(outlier_cycles) & outlier_cycles) |
+                    (!is.na(outlier_init) & outlier_init) |
+                    (!is.na(outlier_manual) & outlier_manual)) |>
+           # get rid of raw cycle data
+           ## select(-cycle_data) |>
+           select(-where(is.list)) |>
+           arrange(file_datetime) |>
+           # get rid of duplicated rows
+           tidylog::distinct(Analysis, file_id, file_size, s44_init, r44_init, .keep_all = TRUE) |>
+           tidylog::filter(!is.na(file_datetime)) |> # this is needed for pacman caf because there are 3 NA rows!
+           offset_correction_wrapper(acc = accepted_standard_values),
+           format = "fst_tbl"),
+
+tar_target(pacman_caf_temperature, pacman_caf_sample_level |>
+                               # there are many ways of calculating the ETF
+                               ## raw session
+                               clumpedr:::calculate_etf(raw = D47_raw_mean,
+                                                        exp = expected_D47,
+                                                        session = etf_grp,
+                                                        etf = etf,
+                                                        etf_coefs = etf_coefs,
+                                                        slope = etf_slope_grp,
+                                                        intercept = etf_intercept_grp) |>
+                               ## offset corrected session
+                               clumpedr:::calculate_etf(raw = D47_offset_corrected,
+                                                        exp = expected_D47,
+                                                        session = etf_grp,
+                                                        etf = etf_off,
+                                                        etf_coefs = etf_coefs_off,
+                                                        slope = etf_slope_grp_off,
+                                                        intercept = etf_intercept_grp_off) |>
+                               ## raw rolling, 201
+                               rolling_etf(x = expected_D47, y = D47_raw_mean,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope_raw,
+                                           intercept = etf_intercept_raw) |>
+                               ## offset rolling, 201
+                               rolling_etf(x = expected_D47,
+                                           y = D47_offset_corrected,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope,
+                                           intercept = etf_intercept) |>
+                               apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) |>
+                               apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) |>
+                               apply_etf(intercept = etf_intercept_grp, slope = etf_slope_grp, raw = D47_raw_mean, out = D47_final_no_offset) |>
+                               apply_etf(intercept = etf_intercept_grp_off, slope = etf_slope_grp_off, raw = D47_offset_corrected, out = D47_final) |>
+                               temperature_calculation(D47 = D47_final, slope = .data$temperature_slope,
+                                                       intercept = .data$temperature_intercept) |>
+                               temperature_calculation(D47 = D47_final_no_offset, temp = temperature_no_offset,
+                                                       slope = .data$temperature_slope, intercept = .data$temperature_intercept) |>
+                               create_reason_for_outlier() |>
+                               select(-where(is.list)) |> # this might solve hanging?
+                               order_columns() |>
+                               arrange(file_datetime),
+           format = "qs"),
+
+## pacman
+
+tar_target(pacman_raw_deltas, pacman_raw |>
+                             # write a wrapper function for this so that the targets are simpler
+                             # TODO figure out how to loop over two separate lists of both raw and meta info
+                             add_info(pacman_raw_file_info,
+                                      c("dis_min", "dis_max", "dis_fac", "dis_rel")) |>
+                             clumpedr::find_bad_cycles(min = dis_min,
+                                                       max = dis_max,
+                                                       fac = dis_fac,
+                                                       # TODO: get relative_to parms call to work based on dataframe itself
+                                                       relative_to = "init") |>
+                             filter_duplicated_raw_cycles() |>
+                             clumpedr::spread_match(masses = 44:49) |>
+                             add_info(.info = pacman_raw_file_info, cols = c("bg_group", "bg_fac")) |>
+                             add_background_info(pacman_scn_mod |> bind_rows()) |>
+                             # TODO: use neighbouring scans before and after sample to get rid of scan noise?
+                             correct_backgrounds_scn(fac = .data$bg_fac) |>
+                             # remove the scan models because they take up a lot of memory as list columns
+                             select(-starts_with("lm_")) |>
+                             add_info(.info = pacman_raw_file_info,
+                                      c("d13C_PDB_wg", "d18O_PDBCO2_wg")) |>
+                             clumpedr::abundance_ratios(s44, s45_bg, s46_bg, s47_bg, s48_bg, s49_bg) |>
+                             clumpedr::abundance_ratios(r44, r45_bg, r46_bg, r47_bg, r48_bg, r49_bg,
+                                                        R45_wg, R46_wg, R47_wg, R48_wg, R49_wg) |>
+                             clumpedr::little_deltas() |>
+                             add_info(pacman_raw_file_info, c("Mineralogy")) |>
+                             add_R18() |>
+                             # TODO check if this works for dolomite samples, not sure if vectorized
+                             clumpedr::bulk_and_clumping_deltas(R18_PDB = .data$R18_PDB) |>
+                             clumpedr::summarise_outlier(quiet = TRUE),
+            # TODO: exclude values mass 54/48/49 < -490
+            # TODO: decide whether p49 can be ignored here? I think so because we're doing it at sample level now
+            ## add_info(pacman_file_info |> bind_rows(), c("Analysis", "p49_crit")) |>
+            ## clumpedr::find_R_flags() |>  # TODO: get rid of R_flags? do they find anything of value?
             pattern = map(pacman_raw, pacman_raw_file_info),
             iteration = "list",
             format = "qs"),
 
  # nesting and summarising still happens within each folder, because this is slow for the big db
- tar_target(pacman_nested, pacman_raw_deltas %>%
-                         clumpedr::nest_cycle_data(masses = 44:49) %>%
+ tar_target(pacman_nested, pacman_raw_deltas |>
+                         clumpedr::nest_cycle_data(masses = 44:49) |>
                          summarize_d13C_d18O_D47(),
            pattern = map(pacman_raw_deltas),
            iteration = "list",
@@ -649,36 +807,72 @@ tar_target(pacman_raw_deltas, pacman_raw %>%
 
 ## sample level summaries
 tar_target(pacman_sample_level,
-           pacman_nested %>%
-           bind_rows() %>%  # finally the data are rbinded into one big df!
-           add_remaining_meta(pacman_file_info %>% bind_rows()) %>%
+           pacman_nested |>
+           bind_rows() |>  # finally the data are rbinded into one big df!
+           string_scan_files() |>
+           # this shows that there are quite a few duplicates in pacman did!
+           add_remaining_meta(pacman_file_info |> bind_rows()) |>
            clumpedr::find_init_outliers(init_low = init_low,
                                         init_high = init_high,
-                                        init_diff = init_diff) %>%
-           summarise_cycle_outliers() %>%
-           mutate(outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit) %>%
-           summarize_outlier() %>%
+                                        init_diff = init_diff) |>
+           summarise_cycle_outliers() |>
+           mutate(outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit) |>
+           ## summarize_outlier() |>
+           # try out conservative outlier selection
+           mutate(outlier = outlier_noscan | outlier_nodelta |
+                    (!is.na(outlier_cycles) & outlier_cycles) |
+                    (!is.na(outlier_init) & outlier_init) |
+                    (!is.na(outlier_manual) & outlier_manual)) |>
            # get rid of raw cycle data
-           ## select(-cycle_data) %>%
-           select(-where(is.list)) %>%
-           arrange(file_datetime) %>%
+           ## select(-cycle_data) |>
+           select(-where(is.list)) |>
+           arrange(file_datetime) |>
+           # get rid of duplicated rows
+           tidylog::distinct(Analysis, file_id, file_datetime, file_size, s44_init, r44_init, .keep_all = TRUE) |>
            offset_correction_wrapper(acc = accepted_standard_values),
            format = "fst_tbl"),
 
-tar_target(pacman_temperature, pacman_sample_level %>%
-                             rolling_etf(D47_raw_mean, std = etf_stds,
-                                         width = etf_width, slope = etf_slope_raw, intercept = etf_intercept_raw) %>%
-                             rolling_etf(D47_offset_corrected, std = etf_stds,
-                                         width = etf_width, slope = etf_slope, intercept = etf_intercept) %>%
-                             apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_no_offset) %>%
-                             apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final) %>%
-                             temperature_calculation(D47 = D47_final, slope = .data$temperature_slope,
-                                                     intercept = .data$temperature_intercept) %>%
-                             temperature_calculation(D47 = D47_final_no_offset, temp = temperature_no_offset,
-                                                     slope = .data$temperature_slope, intercept = .data$temperature_intercept) %>%
-                             create_reason_for_outlier() %>%  # TODO: update to work with sample-level param49
-                             order_columns() %>%  # rewrite to work with sample level p49
-                             arrange(file_datetime),
+tar_target(pacman_temperature, pacman_sample_level |>
+                               # there are many ways of calculating the ETF
+                               ## raw session
+                               clumpedr:::calculate_etf(raw = D47_raw_mean,
+                                                        exp = expected_D47,
+                                                        session = etf_grp,
+                                                        etf = etf,
+                                                        etf_coefs = etf_coefs,
+                                                        slope = etf_slope_grp,
+                                                        intercept = etf_intercept_grp) |>
+                               ## offset corrected session
+                               clumpedr:::calculate_etf(raw = D47_offset_corrected,
+                                                        exp = expected_D47,
+                                                        session = etf_grp,
+                                                        etf = etf_off,
+                                                        etf_coefs = etf_coefs_off,
+                                                        slope = etf_slope_grp_off,
+                                                        intercept = etf_intercept_grp_off) |>
+                               ## raw rolling, 201
+                               rolling_etf(x = expected_D47, y = D47_raw_mean,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope_raw,
+                                           intercept = etf_intercept_raw) |>
+                               ## offset rolling, 201
+                               rolling_etf(x = expected_D47,
+                                           y = D47_offset_corrected,
+                                           std = etf_stds, width = etf_width,
+                                           slope = etf_slope,
+                                           intercept = etf_intercept) |>
+                               apply_etf(intercept = etf_intercept_raw, slope = etf_slope_raw, raw = D47_raw_mean, out = D47_final_roll_no_offset) |>
+                               apply_etf(intercept = etf_intercept, slope = etf_slope, raw = D47_offset_corrected, out = D47_final_roll) |>
+                               apply_etf(intercept = etf_intercept_grp, slope = etf_slope_grp, raw = D47_raw_mean, out = D47_final_no_offset) |>
+                               apply_etf(intercept = etf_intercept_grp_off, slope = etf_slope_grp_off, raw = D47_offset_corrected, out = D47_final) |>
+                               temperature_calculation(D47 = D47_final, slope = .data$temperature_slope,
+                                                       intercept = .data$temperature_intercept) |>
+                               temperature_calculation(D47 = D47_final_no_offset, temp = temperature_no_offset,
+                                                       slope = .data$temperature_slope, intercept = .data$temperature_intercept) |>
+                               create_reason_for_outlier() |>
+                               select(-where(is.list)) |> # this might solve hanging?
+                               order_columns() |>
+                               arrange(file_datetime),
            format = "qs"),
 
 ## export
@@ -686,6 +880,7 @@ tar_target(pacman_temperature, pacman_sample_level %>%
 tar_target(pacman_export, tar_excel(pacman_temperature, "out/pacman_all_data_RAW.xlsx"),
            format = "file"),
 tar_target(pacman_out, tar_write(pacman_temperature,  "~/SurfDrive/PhD/programming/dataprocessing/out/pacman_cycle_level_summaries.rds"), format = "file"),
+tar_target(pacman_caf_out, tar_write(pacman_caf_temperature,  "~/SurfDrive/PhD/programming/dataprocessing/out/pacman_caf_cycle_level_summaries.rds"), format = "file"),
 tar_target(pacman_export_csv, tar_csv(pacman_temperature, "out/pacman_all_data_RAW.csv"),
            format = "file")
 
