@@ -13,3 +13,5 @@ The required R packages for this workflow are:
 - readxl
 - isoreader
 - slider
+- targets
+- tidylog
