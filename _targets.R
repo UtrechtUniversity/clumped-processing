@@ -25,7 +25,8 @@ list(
   tar_target(stdnames, c(paste0("ETH-", 1:4), paste0("IAEA-C", 1:2), "Merck")),
 
   # logfiles currently not used
-  tar_target(motu_log_file, "~/Documents/archive/motu/log.xlsx", format = "file"),
+  tar_target(motu_log_file, "//ad.geo.uu.nl/GML/Rawdata/253pluskiel/logbook_253plus.xlsx", 
+             format = "file"),
   tar_target(motu_log, readxl::read_excel(motu_log_file, sheet = "logbook  253plus", range = "A1:AB1000",
                                           col_types = c("date",
                                                         "date",
@@ -379,7 +380,7 @@ tar_target(motu_temperature, motu_sample_level |>
 
 tar_target(motu_export, tar_excel(motu_temperature, "out/motu_all_data_RAW.xlsx"),
            format = "file"),
-tar_target(motu_out, tar_write(motu_temperature,  "~/SurfDrive/PhD/programming/dataprocessing/out/motu_cycle_level_summaries.rds"), format = "file"),
+tar_target(motu_out, tar_write(motu_temperature,  "out/motu_cycle_level_summaries.rds"), format = "file"),
 tar_target(motu_export_csv, tar_csv(motu_temperature, "out/motu_all_data_RAW.csv"),
            format = "file"),
 
@@ -886,8 +887,8 @@ tar_target(pacman_temperature, pacman_sample_level |>
 
 tar_target(pacman_export, tar_excel(pacman_temperature, "out/pacman_all_data_RAW.xlsx"),
            format = "file"),
-tar_target(pacman_out, tar_write(pacman_temperature,  "~/SurfDrive/PhD/programming/dataprocessing/out/pacman_cycle_level_summaries.rds"), format = "file"),
-tar_target(pacman_caf_out, tar_write(pacman_caf_temperature,  "~/SurfDrive/PhD/programming/dataprocessing/out/pacman_caf_cycle_level_summaries.rds"), format = "file"),
+tar_target(pacman_out, tar_write(pacman_temperature,  "out/pacman_cycle_level_summaries.rds"), format = "file"),
+tar_target(pacman_caf_out, tar_write(pacman_caf_temperature,  "out/pacman_caf_cycle_level_summaries.rds"), format = "file"),
 tar_target(pacman_export_csv, tar_csv(pacman_temperature, "out/pacman_all_data_RAW.csv"),
            format = "file")
 
