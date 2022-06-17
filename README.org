@@ -8,10 +8,17 @@ If we need to run the workflow, we can [[https://orgmode.org/manual/Extracting-S
 
 The required R packages for this workflow are:
 
-- [[https://github.com/isoverse/clumpedr/][~clumpedr~ package]], install with ~devtools::install_github("isoverse/clumpedr")~
-- some packages in the tidyverse. It's probably easiest to just install them all...
-- readxl
-- isoreader
-- slider
-- targets
-- tidylog
+- [[https://github.com/isoverse/clumpedr/][~clumpedr~ package]], install with ~devtools::install_github("isoverse/clumpedr")~ to do the generic clumped isotope calculations
+- tidyverse packages :: It's probably easiest to just install them all...
+  - dplyr :: data wrangling
+  - readr :: reading/writing csv files
+  - purrr :: functional programming, never loop again
+  - tibble :: better data.frames
+  - ... ?
+- readxl :: to read in our excel files with metadata changes
+- qs :: for optimized cache of lists
+- fst :: for optimized cache of data.frames and tibbles
+- isoreader :: to read in the raw files
+- slider :: for the rolling empirical transfer function (currently not preferred)
+- targets :: for the cached reproducible pipeline workflow
+- tidylog :: for neat log messages about dplyr verbs

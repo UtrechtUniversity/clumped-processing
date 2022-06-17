@@ -52,7 +52,7 @@ read_scn <- function(data, cache = FALSE, parallel = TRUE, quiet = FALSE) {
 meta_fix_types <- function(data) {
   data |>
     # new format with parms included
-    type_convert(col_types = cols(Analysis = "i",
+    readr::type_convert(col_types = cols(Analysis = "i",
                                   file_id = "c",
                                   file_root = "c",
                                   file_subpath = "T",
@@ -178,9 +178,9 @@ file_name_prep <- function(data) {
              str_replace_all("B", "") |> parse_integer())
 }
 
-parse_col_types <- function(.data) {
-  .data |>
-    type_convert(col_types = cols(file_id = "c",
+parse_col_types <- function(data) {
+  data |>
+    readr::type_convert(col_types = cols(file_id = "c",
                                   file_root = "c",
                                   file_path = "c",
                                   file_subpath = "c",
@@ -204,78 +204,78 @@ parse_col_types <- function(.data) {
                                   MS_integration_time.s = "d"))
 }
 
-split_meas_info <- function(.data) {
-    if (!"measurement_info" %in% colnames(.data)) {
+split_meas_info <- function(data) {
+    if (!"measurement_info" %in% colnames(data)) {
       warning("Column `measurement_info` not found in data.")
-      return(.data)
+      return(data)
     }
 
-    .data |>
-        extract(measurement_info,
+    data |>
+        tidyr::extract(measurement_info,
                 into = "acid_temperature",
                 regex = "Acid: *(-?\\d+\\.?\\d*) *\\[?°?C?\\]?",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "leak_rate",
                 regex =   "LeakRate *\\[µBar/Min\\]: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "extra_drops",
                 regex = "(\\d+) *xtra *drops",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "p_no_acid",
                 regex = "P no Acid : *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "p_gases",
                 regex = "P gases: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "total_CO2",
                 regex = "Total CO2 *: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "no_exp",
                 regex = "# Exp\\.: *(-?\\d+\\.?\\d*)?",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "CO2_after_exp",
                 regex = "CO2 after Exp\\.: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "VM1_aftr_trfr",
                 regex = "VM1 *aftr *Trfr\\.: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "PC",
                 regex = "PC \\[(-?\\d+\\.?\\d*)\\]",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "background",
                 regex = "Background: (.*)\n",
                 remove = FALSE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "init_int",
                 regex =  "Init int: *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = "bellow_pos_smp",
                 regex = "Bellow Pos: *(-?\\d+\\.?\\d*)%",
                 remove = FALSE,
                 convert = TRUE) |>
-        extract(measurement_info,
+        tidyr::extract(measurement_info,
                 into = c("ref_mbar", "ref_pos"),
                 regex = "RefI: *mBar *r *(-?\\d+\\.?\\d*) *pos *r *(-?\\d+\\.?\\d*)",
                 remove = FALSE,
@@ -283,7 +283,7 @@ split_meas_info <- function(.data) {
   }
 
 #' this adds the initial intensities from dids to the metadata
-add_inits <- function(.data, dids) {
+add_inits <- function(data, dids) {
   inits <- dids |>
     iso_get_raw_data(select = c(cycle, type, v44.mV),
                      include_file_info = Analysis)
@@ -294,7 +294,7 @@ add_inits <- function(.data, dids) {
            mutate(Analysis = parse_integer(Analysis)),
          inits <- tibble(file_id = character(), Analysis = integer(), s44_init = double(), r44_init = double()))
 
-  left_join(x = .data, y = inits, by = c("Analysis", "file_id"))
+  left_join(x = data, y = inits, by = c("Analysis", "file_id"))
 }
 
 fix_metadata <- function(data, meta, irms = "MotU-KielIV") {
@@ -782,7 +782,7 @@ calculate_scan_models <- function(data) {
 
   data |>
     group_by(scan_group) |>
-    nest(data = c(starts_with("file_"), starts_with("voltage"),
+    tidyr::nest(data = c(starts_with("file_"), starts_with("voltage"),
                   starts_with("min_4"),
                   starts_with("min_54"),
                   starts_with("max_4"),
@@ -959,8 +959,8 @@ string_scan_files <- function(data) {
              stringr::str_replace_all("c?\\(?\\\\?\",?\\)?", ""))
 }
 
-add_scan_info <- function(.data, .info, cols, quiet = clumpedr:::default(quiet)) {
-  if (nrow(.data) == 0) {
+add_scan_info <- function(data, .info, cols, quiet = clumpedr:::default(quiet)) {
+  if (nrow(data) == 0) {
     return(tibble(file_id = character()))
   }
 
@@ -972,7 +972,7 @@ add_scan_info <- function(.data, .info, cols, quiet = clumpedr:::default(quiet))
     message("Info: appending measurement information.")
   }
 
-  left_join(x = .data, y = .info %>% select(tidyselect::all_of(cols)), by = "file_id")
+  left_join(x = data, y = .info %>% select(tidyselect::all_of(cols)), by = "file_id")
 }
 
 export_scan_metadata <- function(data, meta, file) {
@@ -1033,28 +1033,28 @@ export_scan_metadata <- function(data, meta, file) {
    file
 }
 
-filter_duplicated_raw_cycles <- function(.data) {
-  if (nrow(.data) == 0L) {
+filter_duplicated_raw_cycles <- function(data) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
-  tidylog::distinct(.data, Analysis, file_id, type, cycle, v44.mV, .keep_all = TRUE)
+  tidylog::distinct(data, Analysis, file_id, type, cycle, v44.mV, .keep_all = TRUE)
 }
 
-add_mineralogy <- function(.data, info) {
-  if (nrow(.data) == 0L) {
+add_mineralogy <- function(data, info) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
 
-  .data |>
+  data |>
     tidylog::left_join(select(info, file_id, Mineralogy), by = "file_id")
 }
 
-add_R18 <- function(.data, min = Mineralogy) {
-  if (nrow(.data) == 0L) {
+add_R18 <- function(data, min = Mineralogy) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
 
-  .data |>
+  data |>
     tidylog::mutate(R18_PDB = case_when(is.na({{min}}) ~ #{
       ## warning("No mineralogy specified, defaulting to Calcite") ;
       clumpedr:::default(R18_PDB), #},
@@ -1065,18 +1065,18 @@ add_R18 <- function(.data, min = Mineralogy) {
       ))
 }
 
-summarize_d13C_d18O_D47 <- function(.data) {
-  if (nrow(.data) == 0L) {
+summarize_d13C_d18O_D47 <- function(data) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
 
-  if (!"cycle_data" %in% names(.data)) {
+  if (!"cycle_data" %in% names(data)) {
     stop("'cycle_data' not found in data.")
   }
 
-  .data |>
+  data |>
     ## group_by(file_id) |>
-    mutate(summaries = map(.data$cycle_data,
+    mutate(summaries = map(data$cycle_data,
                            .f = ~ .x |>
                              filter(!outlier, !outlier_cycle) |>
                              dplyr::select(d45, d46, d47, d48, d49,
@@ -1116,7 +1116,7 @@ summarize_d13C_d18O_D47 <- function(.data) {
 ##' will get rid of inter-preparation drift. Note that error propagation is not
 ##' implemented at the moment!
 ##'
-##' @param .data
+##' @param data
 ##' @param std The standard(s) to perform offset correction with.
 ##' @param grp A string with the column name to group by
 ##' @param exp The expected/accepted values to append to the data.
@@ -1129,12 +1129,12 @@ summarize_d13C_d18O_D47 <- function(.data) {
 ##' @param out The name of the outlier_offset column.
 ##' @param min The minimum offset to determine whether it's an outlier_offset.
 ##' @param max The maximum offset to determine whether it's an outlier_offset.
-offset_correction <- function(.data, std = "ETH-3", grp = NULL,
+offset_correction <- function(data, std = "ETH-3", grp = NULL,
                               exp, raw, off, off_good,
                               off_avg, cor,
                               ## off_bin = offset_bin_D47, dur = 1.5 * 3600,
                               width = 7, out, min = 0.5, max = 0.9, quiet = clumpedr:::default(quiet)) {
-  if (nrow(.data) == 0L) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
 
@@ -1147,7 +1147,7 @@ offset_correction <- function(.data, std = "ETH-3", grp = NULL,
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
 
   if (is.null(grp) || is.na(grp)) {
-    .data |>
+    data |>
       mutate({{off}} := {{exp}} - {{raw}},
              {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
       ## summarize_outlier() |>
@@ -1157,7 +1157,7 @@ offset_correction <- function(.data, std = "ETH-3", grp = NULL,
              ## {{off_avg}} := zoo::rollapplyr({{off_good}}, {{off_bin}}, mean, na.rm = TRUE, fill = NA_real_),
              {{cor}} := {{raw}} + {{off_avg}})
   } else {
-    .data |>
+    data |>
       mutate({{off}} := {{exp}} - {{raw}},
              {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
       ## summarize_outlier() |>
@@ -1176,18 +1176,18 @@ offset_correction <- function(.data, std = "ETH-3", grp = NULL,
 ##'
 ##' @param acc A tibble/dataframe with accepted values.
 ##' @param par A tibble/dataframe with paramters `grp`, `width`, and `std`.
-offset_correction_wrapper <- function(.data, acc) {
-  if (nrow(.data) == 0L) {
+offset_correction_wrapper <- function(data, acc) {
+  if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
   }
 
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
 
-  .data |>
+  data |>
     append_expected_values(std_names = acc$id, by = broadid,
                            std_values = acc$D47, exp = expected_D47) |>
-    offset_correction(std = str_split(.data$off_D47_stds, " ", simplify = TRUE),
-                      grp = .data$off_D47_grp,
+    offset_correction(std = str_split(data$off_D47_stds, " ", simplify = TRUE),
+                      grp = data$off_D47_grp,
                       exp = expected_D47,
                       raw = D47_raw_mean,
                       off = D47_offset,
@@ -1241,7 +1241,7 @@ offset_correction_wrapper <- function(.data, acc) {
     ungroup()
 }
 
-rolling_etf <- function(.data,
+rolling_etf <- function(data,
                         x = expected_D47,
                         y = D47_offset_corrected,
                         slope = etf_slope,
@@ -1249,19 +1249,19 @@ rolling_etf <- function(.data,
                         std = paste0("ETH-", 1:3), width = 201,
                         grp = etf_grp,
                         quiet = clumpedr:::default(quiet)) {
-  ## if (nrow(.data) == 0L) {
+  ## if (nrow(data) == 0L) {
   ##   return(tibble(file_id = character()))
   ## }
 
-  if (!quiet) message(glue::glue("Info: calculating rolling empirical transfer function based on non-outlier standards {glue::glue_collapse(distinct(.data, {{std}}), sep = ' ')} {quo_name(enquo(y))} values with width = {glue::glue_collapse(distinct(.data, {{width}}), sep = ' ')}, grouped by {quo_name(enquo(grp))}"))
+  if (!quiet) message(glue::glue("Info: calculating rolling empirical transfer function based on non-outlier standards {glue::glue_collapse(distinct(data, {{std}}), sep = ' ')} {quo_name(enquo(y))} values with width = {glue::glue_collapse(distinct(data, {{width}}), sep = ' ')}, grouped by {quo_name(enquo(grp))}"))
 
-  ## lengths <- pull(.data, {{width}})
+  ## lengths <- pull(data, {{width}})
   ## if (unique(lengths) == 1L) {
   ##   message("only one window size, simplifying parameter")
   ##   lengths <- unique(lengths)
   ## }
 
-  .data |>
+  data |>
     group_by({{grp}}) |>
     mutate(
       x_good = ifelse(!outlier & broadid %in% str_split({{std}}, " ", simplify = TRUE),
@@ -1281,9 +1281,9 @@ rolling_etf <- function(.data,
     tidylog::select(-one_of("x_good", "y_good", "fit"))
 }
 
-summarise_cycle_outliers <- function(.data) {
+summarise_cycle_outliers <- function(data) {
   message("Info: summarizing cycle outliers")
-  .data |>
+  data |>
     mutate(
       # the number of cycles, including the outlier cycles (compare to n_ok)
       n_cyc = map_dbl(cycle_data,
@@ -1295,7 +1295,7 @@ summarise_cycle_outliers <- function(.data) {
                                 purrr::possibly(~ sum(.$outlier_cycle, na.rm = TRUE), NA_real_)) / n_cyc,
       outlier_noscan = is.na(scan_group),
       outlier_nodelta = is.na(d47_mean),
-      outlier_cycles = prop_bad_cycles > .data$prop_bad_cyc,
+      outlier_cycles = prop_bad_cycles > data$prop_bad_cyc,
       ## prop_bad_param49s = map_dbl(cycle_data,
       ##                             purrr::possibly(~ sum(.$outlier_param49, na.rm = TRUE), NA_real_)) / n_cyc,
       ## outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit,
@@ -1308,8 +1308,8 @@ summarise_cycle_outliers <- function(.data) {
     ## mutate(outlier = outlier_noscan | outlier_nodelta | (!is.na(outlier_cycles) & outlier_cycles))
 }
 
-create_reason_for_outlier <- function(.data) {
-  .data |>
+create_reason_for_outlier <- function(data) {
+  data |>
     tidylog::mutate(reason_for_outlier =
                       paste0(ifelse(outlier_manual, paste("manual", ifelse(!is.na(checked_comment), checked_comment, " no_comment "), "\n"), ""),
                              ifelse(outlier_nodelta, "  noδ\n", ""),
@@ -1333,8 +1333,8 @@ create_reason_for_outlier <- function(.data) {
                              ifelse(!is.na(outlier_offset_d18O) & outlier_offset_d18O, "  d18O_off\n", "")))
 }
 
-order_columns <- function(.data, extra = NULL) {
-  .data |>
+order_columns <- function(data, extra = NULL) {
+  data |>
     tidylog::select(tidyselect::one_of(c(
       # we want these all the way in the beginning for easy access and column blocking
       "Analysis",

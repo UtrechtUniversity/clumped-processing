@@ -45,7 +45,8 @@ list(
 ## These are the measurement files for the standards and the samples. That's 46 measurements per run/preparation/sequence.
 
 tar_target(motu_dids_paths_all,
-           list_files("motu/dids") |>
+           list_files("Kiel Raw Data", 
+                      wd = "//ad.geo.uu.nl/GML/Rawdata/253pluskiel/Raw Data") |>
            file_info() |>
            remove_copies() |>
            batch_files(), # it now iterates over the directories
@@ -65,7 +66,9 @@ tar_target(motu_did_files, motu_dids_paths, format = "file", pattern = map(motu_
 
 # scn files
 tar_target(motu_scn_paths_all,
-           list_files("motu/scn", ".scn$") |>
+           list_files("253pluskiel", ".scn$",
+                      # unfortunately the BGs are kept in many folders at the root level
+                      wd = "//ad.geo.uu.nl/GML/Rawdata") |>
            file_info() |>
            remove_copies() |>
            batch_month(),
@@ -383,7 +386,8 @@ tar_target(motu_export_csv, tar_csv(motu_temperature, "out/motu_all_data_RAW.csv
 ## did files
 
 tar_target(pacman_dids_paths_all,
-           list_files("pacman/dids") |>
+           list_files("Kiel IV data", 
+                      wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253") |>
            file_info() |>
            remove_copies() |>
            batch_files(), # it now iterates over the directories
@@ -401,7 +405,8 @@ tar_target(pacman_did_files, pacman_dids_paths, format = "file", pattern = map(p
 ## caf files
 
 tar_target(pacman_caf_paths_all,
-           list_files("pacman/cafs", ".caf$") |>
+           list_files("clumped/Results", ".caf$", 
+                      wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253") |>
            file_info() |>
            remove_copies() |>
            batch_files(), # it now iterates over the directories
@@ -417,10 +422,12 @@ tar_target(pacman_caf_paths,
 tar_target(pacman_caf_files, pacman_caf_paths, format = "file", pattern = map(pacman_caf_paths)),
 
 ## scn files
-
+#"Background Scans"
+#wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253"
 # scn files
 tar_target(pacman_scn_paths_all,
-           list_files("pacman/scn", ".scn$") |>
+           list_files("Scans", ".scn$",
+                      wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253/clumped") |>
            file_info() |>
            remove_copies() |>
            batch_month(),
