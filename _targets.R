@@ -701,6 +701,11 @@ tar_target(pacman_scn_meta_update, export_scan_metadata(data = pacman_scn_mod |>
 ## pacman caf
 
 tar_target(pacman_caf_raw_deltas, pacman_caf_raw |>
+                             # somehow it's become a character
+                             # there are some without Analysis
+                             tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
+                                               readr::parse_double(Analysis),
+                                               NA_real_)) |>
                              # write a wrapper function for this so that the targets are simpler
                              # TODO figure out how to loop over two separate lists of both raw and meta info
                              add_info(pacman_caf_raw_file_info,
@@ -821,6 +826,11 @@ tar_target(pacman_caf_temperature, pacman_caf_sample_level |>
 ## pacman
 
 tar_target(pacman_raw_deltas, pacman_raw |>
+                             # somehow it's become a character
+                             # there are some without Analysis
+                             tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
+                                               readr::parse_double(Analysis),
+                                               NA_real_)) |>
                              # write a wrapper function for this so that the targets are simpler
                              # TODO figure out how to loop over two separate lists of both raw and meta info
                              add_info(pacman_raw_file_info,
