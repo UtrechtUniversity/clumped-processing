@@ -1,7 +1,27 @@
+# Clumped Isotope R Workflow
+# written by Ilja J. Kocken https://orcid.org/0000-0003-2196-8718
+# Copyright 2022 © Ilja Kocken
+
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+
+# libraries and options ---------------------------------------------------
 library(targets)
 source("R/functions.R")
 options(tidyverse.quiet = TRUE)
 options(clustermq.scheduler = "multicore")
+
+# Note that we're using the development package ~clumpedr~, which I'm writing. Install it with:
+# remotes::install_github("isoverse/clumpedr")
 
 tar_option_set(packages = c(
                  "tidyverse",
@@ -15,11 +35,14 @@ tar_option_set(packages = c(
                )
 options(crayon.enabled = FALSE)
 
-## general
-## These general targets contain accepted standard values and excel logbooks. Currently, the latter are not used in the pipeline.
+
+# general and logbooks ---------------------------------------------------------
+# These general targets contain accepted standard values and excel logbooks.
+# Currently, the latter are not used in the pipeline.
 
 list(
-  tar_target(accepted_standard_values_file, "out/accepted_standard_values.csv", format = "file"),
+  tar_target(accepted_standard_values_file, "dat/accepted_standard_values.csv", 
+             format = "file"),
   tar_target(accepted_standard_values, read_csv(accepted_standard_values_file)),
 
   tar_target(stdnames, c(paste0("ETH-", 1:4), paste0("IAEA-C", 1:2), "Merck")),
@@ -27,7 +50,8 @@ list(
   # logfiles currently not used
   tar_target(motu_log_file, "//ad.geo.uu.nl/GML/Rawdata/253pluskiel/logbook_253plus.xlsx", 
              format = "file"),
-  tar_target(motu_log, readxl::read_excel(motu_log_file, sheet = "logbook  253plus", range = "A1:AB1000",
+  tar_target(motu_log, readxl::read_excel(motu_log_file, sheet = "logbook  253plus", 
+                                          range = "A1:AB1000",
                                           col_types = c("date",
                                                         "date",
                                                         "text",
@@ -42,9 +66,18 @@ list(
                                                   range = "A1:D1000",
                                                   col_types = c("date", rep("guess", 3)))),
 
-## did files
-## These are the measurement files for the standards and the samples. That's 46 measurements per run/preparation/sequence.
 
+# motu pipeline -----------------------------------------------------------
+# MotU stands for Master of the Universe, and is our fanciest newest mass
+# spectrometer, the 253 plus with a Kiel-IV device.
+
+# This uses dynamic targets for all the specific files. This allows us to
+# process files independently and only combine them at the ETF level. We use
+# ~iteration = "list"~ to make dynamic targets per directory, so that
+# preparations only need to be read into R once.
+
+# These are the measurement files for the standards and the samples. That's 46
+# measurements per run/preparation/sequence.
 tar_target(motu_dids_paths_all,
            list_files("Kiel Raw Data", 
                       wd = "//ad.geo.uu.nl/GML/Rawdata/253pluskiel/Raw Data") |>
@@ -60,12 +93,12 @@ tar_target(motu_dids_paths,
            ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
-tar_target(motu_did_files, motu_dids_paths, format = "file", pattern = map(motu_dids_paths)),
-
-## scn files
-## These are the background scans. We create 5 files per run, and they are used to correct all the measurements that follow it until the next scans.
+tar_target(motu_did_files, motu_dids_paths, format = "file", 
+           pattern = map(motu_dids_paths)),
 
 # scn files
+# These are the background scans. We create 5 files per run, and they are used
+# to correct all the measurements that follow it until the next scans.
 tar_target(motu_scn_paths_all,
            list_files("253pluskiel", ".scn$",
                       # unfortunately the BGs are kept in many folders at the root level
@@ -82,12 +115,13 @@ tar_target(motu_scn_paths,
            ## vctrs::vec_c() |>
            ## vctrs::vec_slice(c(1:3, floor(length(.)/2) + c(-1,0,1), length(.) + c(-2, -1, 0))),
            iteration = "list"),
-tar_target(motu_scn_files, motu_scn_paths, format = "file", pattern = map(motu_scn_paths)),
+tar_target(motu_scn_files, motu_scn_paths, format = "file", 
+           pattern = map(motu_scn_paths)),
 
 ## read in as isoreader files
-## The above only listed the files and cut them up into list chunks per run. Here we read in the data in the files.
-## This is quite slow and usually only needs to happen once, unless we have an update in the ~isoreader~ package.
-
+# The above only listed the files and cut them up into list chunks per run. Here
+# we read in the data in the files. This is quite slow and usually only needs to
+# happen once, unless we have an update in the ~isoreader~ package.
 tar_target(motu_dids,
            read_di(motu_did_files),
            pattern = map(motu_did_files),
@@ -100,11 +134,13 @@ tar_target(motu_scn,
            cue = tar_cue(command = FALSE)),
 
 ## extract raw data
-## This gets the raw data, i.e. individual cycles of intensities per mass, from the above files.
+## This gets the raw data, i.e. individual cycles of intensities per mass, from
+## the above files.
 
 tar_target(motu_raw,
            iso_get_raw_data(motu_dids, include_file_info = Analysis), #|>
-           # this now iterates over the folders, so it won't have to re-run this expensive function
+           # this now iterates over the folders, so it won't have to re-run this
+           # expensive function
            pattern = map(motu_dids),
            iteration = "list",
            format = "qs"),
@@ -116,12 +152,14 @@ tar_target(motu_scn_raw,
            format = "qs"),
 
 ## read in metadata
-## These files hold the current metadata fixes with desired parameters for data processing.
-
+## These files hold the current metadata fixes with desired parameters for data
+## processing.
 tar_target(motu_meta_file, "dat/motu_metadata_parameters.xlsx", format = "file"),
 tar_target(motu_metadata, readxl::read_excel(motu_meta_file, guess_max = 1e5) |>
                           meta_fix_types() |> # TODO: switch to parse_col_types?
-                          tidylog::distinct(Analysis, ## file_id, # there are some with unique file_id's but the same file contents
+                          tidylog::distinct(Analysis, 
+               # there are some with unique file_id's but the same file contents
+                                            # file_id, 
                                             file_size, file_datetime, .keep_all = TRUE),
            format = "fst_tbl"),
 
@@ -255,10 +293,19 @@ tar_target(motu_meta_update, export_metadata(data = motu_file_info |>
            format = "file"),
 
 ## raw deltas
-## Most of the computations have already landed in [[https://github.com/isoverse/clumpedr/][my clumpedr]] package, but we do have some tricks here that I've found not to be general enough for sharing with the wider community, such as offset correction.
-## I've made the calls to ~clumpedr~ explicit with ~::~ so that it is clear which functions are mainained in this repository and which ones are in the other package.
 
+# Most of the computations have already landed in my clumpedr package
+# https://github.com/isoverse/clumpedr/, but we do have some tricks here that
+# I've found not to be general enough for sharing with the wider community, such
+# as offset correction. I've made the calls to ~clumpedr~ explicit with ~::~ so
+# that it is clear which functions are mainained in this repository and which
+# ones are in the other package.
 tar_target(motu_raw_deltas, motu_raw |>
+                             # somehow it's become a character
+                             # there are some without Analysis
+                             tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
+                                                               readr::parse_double(Analysis),
+                                                               NA_real_)) |>
                              # write a wrapper function for this so that the targets are simpler
                              # TODO figure out how to loop over two separate lists of both raw and meta info
                              add_info(motu_raw_file_info,
@@ -384,8 +431,13 @@ tar_target(motu_out, tar_write(motu_temperature,  "out/motu_cycle_level_summarie
 tar_target(motu_export_csv, tar_csv(motu_temperature, "out/motu_all_data_RAW.csv"),
            format = "file"),
 
-## did files
 
+# pacman pipeline ---------------------------------------------------------
+
+# This is our older mass spectrometer. It is a MAT 253 with a Kiel IV, but it
+# had a Kiel III attached earlier with a different software version. The newer
+# measurement files are the ~.did~ files and the older files are the ~.caf~
+# files.
 tar_target(pacman_dids_paths_all,
            list_files("Kiel IV data", 
                       wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253") |>
@@ -484,7 +536,7 @@ tar_target(pacman_scn_raw,
            format = "qs"),
 
 ## read in metadata
-
+## TODO: figure out how to get this from onedrive automatically
 tar_target(pacman_did_meta_file, "dat/pacman_did_metadata_parameters.xlsx", format = "file"),
 tar_target(pacman_metadata, readxl::read_excel(pacman_did_meta_file, guess_max = 1e5) |>
                           meta_fix_types() |> # TODO: switch to parse_col_types?

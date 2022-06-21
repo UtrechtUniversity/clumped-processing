@@ -1,3 +1,20 @@
+# Clumped Isotope R Workflow
+# written by Ilja J. Kocken https://orcid.org/0000-0003-2196-8718
+# Copyright 2022 © Ilja Kocken
+
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along with
+# this program. If not, see <https://www.gnu.org/licenses/>.
+
+# read in the raw files ---------------------------------------------------
 list_files <- function(path = "motu/dids",
                        pattern = ".did$",
                        recursive = TRUE,
@@ -24,6 +41,7 @@ remove_copies <- function(data) {
   tidylog::distinct(data, file_name, file_size, .keep_all = TRUE)
 }
 
+# Batch reading in the files so that we have fewer dynamic targets. Do this per directory of results.
 batch_files <- function(data) {
   tapply(data$file_path,
          ## INDEX = data$file_year + 1/12 * data$file_month,
@@ -32,6 +50,7 @@ batch_files <- function(data) {
     unname()
 }
 
+# The scans are not listed in separate directories, so we batch them by year+month.
 batch_month <- function(data) {
   tapply(data$file_path,
          INDEX = data$file_year + 1/12 * data$file_month,
@@ -49,6 +68,8 @@ read_scn <- function(data, cache = FALSE, parallel = TRUE, quiet = FALSE) {
   iso_read_scan(data, cache = cache, parallel = parallel, quiet = quiet)
 }
 
+
+# clean up metadata -------------------------------------------------------
 meta_fix_types <- function(data) {
   data |>
     # new format with parms included
@@ -163,6 +184,7 @@ add_timeofday <- function(data) {
              lubridate::second(file_datetime) / 60 / 60)
 }
 
+# This compares the preparation/run number inside the file with the one in the filename/filepath.
 find_bad_runs <- function(data) {
   out <- data |>
     file_name_prep() |>
@@ -204,6 +226,21 @@ parse_col_types <- function(data) {
                                   MS_integration_time.s = "d"))
 }
 
+# Here is an example of the info that we're trying to tease apart
+# - Acid: 70.0 [°C]
+# - LeakRate [µBar/Min]:  171
+# - 0 xtra drops
+# - P no Acid :    3
+# - P gases:   27
+# - Total CO2 :  550
+# - # Exp.:  0
+#   - CO2 after Exp.:  550
+# - VM1 aftr Trfr.:    0
+# - PC [62040]
+# - Background: BGD 2018/Jan/23 03:15 -  (Administrator)
+# - Init int: 18050.65
+# - Bellow Pos: 100%
+# - RefI: mBar r 67.1  pos r 33.7
 split_meas_info <- function(data) {
     if (!"measurement_info" %in% colnames(data)) {
       warning("Column `measurement_info` not found in data.")
@@ -594,6 +631,8 @@ create_metadata <- function(meta, file) {
    file
 }
 
+
+# process background scans ------------------------------------------------
 file_name_scn <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
@@ -637,6 +676,9 @@ fix_scan_meta <- function(data) {
     select(-manual_outlier)
 }
 
+# We had a mistake in the software setting for some time. Here we undo that
+# correction prior to analysis, based on the logical column ~fix_software~ in
+# the metadata.
 fix_motu_scans <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
@@ -654,6 +696,7 @@ fix_motu_scans <- function(data) {
     tidylog::mutate(v47.mV = ifelse(fix_software, v47.mV - v54.mV, v47.mV))
 }
 
+# Tidying is reshaping into long format https://r4ds.had.co.nz/tidy-data.html.
 tidy_scans <- function(data) {
   if (!all(c("v44.mV", "v47.mV") %in% colnames(data)) | nrow(data) == 0) {
     return(tibble(file_id = character()))
@@ -669,7 +712,9 @@ tidy_scans <- function(data) {
     tidylog::rename("mass" = "name", "intensity" = "value")
 }
 
-# this one now uses columns!
+# This creates logical columns to indicate whether a part of a scan should be
+# used to calculate the minimum or maximum intensities. It does so based on the
+# metadata columns. this one now uses columns!
 flag_scan_ranges <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
@@ -690,6 +735,10 @@ flag_scan_ranges <- function(data) {
     tidylog::mutate(max_sub = x > max_start & x < max_end)
 }
 
+# Some scans have values in the minimum range that are less than the sensor can
+# actually record. We need to exclude those, so I mark them as outliers here.
+# The capped minimum value differs per mass, so I've put the actual capped
+# values in here.
 flag_scan_capped <- function(data,
                              m44 = -499,
                              m45 = -499,
@@ -716,6 +765,7 @@ flag_scan_capped <- function(data,
     left_join(minrange, by = c("file_id", "mass"))
 }
 
+# This calculates the average minimum and maximum values in the flagged ranges.
 calculate_min_max <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(scan_group = character())) # this one doesn't have file_id anymore!
@@ -775,6 +825,8 @@ pivot_scans <- function(data) {
                          values_from = value)
 }
 
+# This fits linear models between the minima for the different masses and the
+# maximum of mass 44.
 calculate_scan_models <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(scan_group = character()))
@@ -833,6 +885,8 @@ calculate_scan_models <- function(data) {
   tidylog::filter(!is.na(bg_group))
 }
 
+# If the model fails, we return an empty model so we can still call ~coef~ on it
+# without problems.
 em <- function() {
   out  <- list()
   class(out) <- "lm"
@@ -884,6 +938,7 @@ add_background_info <- function(data, bg) {
                        by = "bg_group") #"file_id"
 }
 
+# Apply the background corrections to the raw measurement intensities at the cycle level.
 correct_backgrounds_scn <- function(data, fac) {  #  = 0.91, masses = c(44:49, 54)
   message("Info: correcting backgrounds using scan models")
   if (nrow(data) == 0L) {
@@ -953,12 +1008,14 @@ parse_preparation_number <- function(data, col = sheet) {
              parse_double())
 }
 
+# This convers the list to a simple string vector for easier export.
 string_scan_files <- function(data) {
   data |>
     tidylog::mutate(scan_files = paste0(scan_files) |>
              stringr::str_replace_all("c?\\(?\\\\?\",?\\)?", ""))
 }
 
+# a special version of clumpedr's add_info that does not rely on Analysis
 add_scan_info <- function(data, .info, cols, quiet = clumpedr:::default(quiet)) {
   if (nrow(data) == 0) {
     return(tibble(file_id = character()))
@@ -975,6 +1032,8 @@ add_scan_info <- function(data, .info, cols, quiet = clumpedr:::default(quiet)) 
   left_join(x = data, y = .info %>% select(tidyselect::all_of(cols)), by = "file_id")
 }
 
+# This was the easiest way I could find to create consistent output with the
+# desired order of columns.
 export_scan_metadata <- function(data, meta, file) {
    data |>
      tidylog::filter(scan_datetime > max(meta$scan_datetime, na.rm = TRUE)) |>
@@ -1033,6 +1092,11 @@ export_scan_metadata <- function(data, meta, file) {
    file
 }
 
+
+# raw deltas --------------------------------------------------------------
+
+# Most functions to calculate raw deltas are already a part of ~clumpedr~
+# https://github.com/isoverse/clumpedr/
 filter_duplicated_raw_cycles <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
@@ -1065,6 +1129,7 @@ add_R18 <- function(data, min = Mineralogy) {
       ))
 }
 
+# summarize d45 d46 d47 d48 d49 d13C d18O D45 D46 D47 D48 D49 param_49
 summarize_d13C_d18O_D47 <- function(data) {
   if (nrow(data) == 0L) {
     return(tibble(file_id = character()))
@@ -1241,6 +1306,9 @@ offset_correction_wrapper <- function(data, acc) {
     ungroup()
 }
 
+# The empirical transfer function relates the raw D47 values of the standards to
+# their expected values. Here we apply a rolling version, that is affected by
+# the ~width~ measurements that bracket the current one.
 rolling_etf <- function(data,
                         x = expected_D47,
                         y = D47_offset_corrected,
@@ -1308,6 +1376,8 @@ summarise_cycle_outliers <- function(data) {
     ## mutate(outlier = outlier_noscan | outlier_nodelta | (!is.na(outlier_cycles) & outlier_cycles))
 }
 
+# This is to simply represent in one column why a particular measurement could
+# be an outlier.
 create_reason_for_outlier <- function(data) {
   data |>
     tidylog::mutate(reason_for_outlier =

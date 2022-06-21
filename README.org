@@ -6,17 +6,18 @@ This is processing code for the clumped isotope measurements made with the Therm
 See [[file:full_literal_workflow.org]] for the entire workflow! This is a [[https://en.wikipedia.org/wiki/Literate_programming][literate programming]] example, where the code itself is surrounded by rich-text explanation.
 If we need to run the workflow, we can [[https://orgmode.org/manual/Extracting-Source-Code.html#Extracting-Source-Code][~tangle~ the files]] to generate the ~_targets.R~ file as well as the ~R/functions.R~ file.
 
+EDIT: 2022-06-21: now that we have implemented the workflow on a VM with the GEO-ICT, we started working in the ~_targets.R~ and ~functions.R~ files directly.
+
 The required R packages for this workflow are:
 
-- [[https://github.com/isoverse/clumpedr/][~clumpedr~ package]], install with ~devtools::install_github("isoverse/clumpedr")~ to do the generic clumped isotope calculations
-- tidyverse packages :: It's probably easiest to just install them all...
+- [[https://github.com/isoverse/clumpedr/][clumpedr]] :: install with ~devtools::install_github("isoverse/clumpedr")~ to do the generic clumped isotope calculations
+- tidyverse :: It's probably easiest to just install them all...
   - dplyr :: data wrangling
   - readr :: reading/writing csv files, changing column types
   - purrr :: functional programming, never loop again
   - tibble :: better data.frames
   - lubridate :: work with dates and times
   - tidyr :: i.e. extract character column, nesting, pivoting
-  - ... ?
 - readxl :: to read in our excel files with metadata changes
 - qs :: for optimized cache of lists
 - fst :: for optimized cache of data.frames and tibbles
