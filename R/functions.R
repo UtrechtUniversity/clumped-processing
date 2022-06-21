@@ -328,7 +328,9 @@ add_inits <- function(data, dids) {
   ifelse(nrow(inits) > 0L,
          inits <- inits |>
            get_inits() |>
-           mutate(Analysis = parse_integer(Analysis)),
+           tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
+                                             readr::parse_double(Analysis),
+                                             NA_real_)),
          inits <- tibble(file_id = character(), Analysis = integer(), s44_init = double(), r44_init = double()))
 
   left_join(x = data, y = inits, by = c("Analysis", "file_id"))
@@ -1679,7 +1681,9 @@ add_remaining_meta <- function(data, meta) {
 
   data |>
     # we need to convert to integer because that's the type we gave it in the cleaned-up metadata
-    mutate(Analysis = parse_integer(Analysis)) |>
+    tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
+                                      readr::parse_double(Analysis),
+                                      NA_real_)) |>
     ## select(-one_of("Analysis")) |> # some are giving us issues!
     # we use a full join so that files that don't have any raw data are still included in the list!
     tidylog::full_join(meta |>
