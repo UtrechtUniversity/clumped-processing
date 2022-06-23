@@ -42,7 +42,7 @@ source("R/functions.R")
 list(
   tar_target(
     accepted_standard_values_file,
-    "dat/accepted_standard_values.csv",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/accepted_standard_values.csv",
     format = "file"
   ),
   
