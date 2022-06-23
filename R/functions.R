@@ -44,7 +44,6 @@ remove_copies <- function(data) {
 # Batch reading in the files so that we have fewer dynamic targets. Do this per directory of results.
 batch_files <- function(data) {
   tapply(data$file_path,
-         ## INDEX = data$file_year + 1/12 * data$file_month,
          INDEX = data$file_dir,  # also possible to batch by directory
          identity, simplify = FALSE) |>
     unname()
@@ -59,15 +58,12 @@ batch_month <- function(data) {
 }
 
 read_di <- function(data, cache = FALSE, parallel = TRUE, quiet = FALSE) {
-  # TODO: cd to wd, cache = read_cache = TRUE?
   iso_read_dual_inlet(data, cache = cache, parallel = parallel, quiet = quiet)
 }
 
 read_scn <- function(data, cache = FALSE, parallel = TRUE, quiet = FALSE) {
-  # TODO: cd to wd, cache = read_cache = TRUE?
   iso_read_scan(data, cache = cache, parallel = parallel, quiet = quiet)
 }
-
 
 # clean up metadata -------------------------------------------------------
 meta_fix_types <- function(data) {
@@ -345,9 +341,13 @@ fix_metadata <- function(data, meta, irms = "MotU-KielIV") {
     # add the metadata overwrite columns!
     tidylog::left_join(
                meta |>
-               select(.data$Analysis, .data$file_id, #.data$`Identifier 1`,
-                      ends_with("_overwrite"), .data$manual_outlier, .data$Mineralogy,
-                      starts_with("checked_")), by = c("Analysis", "file_id"))
+               select(.data$Analysis, 
+                      .data$file_id, #.data$`Identifier 1`,
+                      ends_with("_overwrite"), 
+                      .data$manual_outlier, 
+                      .data$Mineralogy,
+                      starts_with("checked_")), 
+               by = c("Analysis", "file_id"))
 
   # make sure that weight exists and is a double
   if ("Weight [mg]" %in% colnames(out)) {
@@ -407,7 +407,8 @@ add_parameters <- function(data, meta) {
   data |>
     tidylog::left_join(
                meta |>
-               select(.data$Analysis,.data$file_id, #.data$`Identifier 1`,
+               select(.data$Analysis, 
+                      .data$file_id, #.data$`Identifier 1`,
                       one_of(cn)),
                by = c("Analysis", "file_id"))
 }
@@ -1143,7 +1144,7 @@ summarize_d13C_d18O_D47 <- function(data) {
 
   data |>
     ## group_by(file_id) |>
-    mutate(summaries = map(data$cycle_data,
+    mutate(summaries = map(.data$cycle_data,
                            .f = ~ .x |>
                              filter(!outlier, !outlier_cycle) |>
                              dplyr::select(d45, d46, d47, d48, d49,
@@ -1205,9 +1206,16 @@ offset_correction <- function(data, std = "ETH-3", grp = NULL,
     return(tibble(file_id = character()))
   }
 
-    ## if (! "expected_D47" %in% colnames()) stop("First append_expected_values()")
-  grp_info_str <- ifelse(is.null(grp) || is.na(grp), ", without grouping.", paste0(', grouped by ', grp))
-  if (!quiet) message(glue::glue("Info: performing rolling offset correction for {quo_name(enquo(raw))} with width = {unique(width)} using standards {glue::glue_collapse(unique(std), sep = ' ', last = ' and ')}{grp_info_str}"))
+  if (!quiet) {
+    message("Info: performing rolling offset correction.\n",
+            glue::glue("\ni raw = {quo_name(enquo(raw))}\n"),
+            #glue::glue("i std = {glue::glue_collapse(unique(std), sep = ' ', last = '\n')}")
+            #glue::glue("i std = {std}\n"),
+            #glue::glue("i width = {width}\n"),
+            # because of the quosures I don't know how to do this.
+            glue::glue("\ni grp = {grp}")
+            )
+  }
 
   D47_offset_std <- expected_D47 <- D47_raw_mean <- D47_offset_average <- D47_offset_corrected <- NULL
 
@@ -1218,9 +1226,15 @@ offset_correction <- function(data, std = "ETH-3", grp = NULL,
       mutate({{off}} := {{exp}} - {{raw}},
              {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
       ## summarize_outlier() |>
-      mutate({{off_good}} := ifelse(!outlier & (broadid %in% std), {{off}}, NA_real_),
+      mutate({{off_good}} := ifelse(!.data$outlier & 
+                                      (.data$broadid %in% std),
+                                    {{off}}, 
+                                    NA_real_),
              ## {{off_bin}} := seq_along(findInterval(file_datetime - dur, file_datetime)),
-             {{off_avg}} := prm({{off_good}}, width, na.rm = TRUE, fill = "extend"),
+             {{off_avg}} := prm({{off_good}}, 
+                                {{width}}, 
+                                na.rm = TRUE, 
+                                fill = "extend"),
              ## {{off_avg}} := zoo::rollapplyr({{off_good}}, {{off_bin}}, mean, na.rm = TRUE, fill = NA_real_),
              {{cor}} := {{raw}} + {{off_avg}})
   } else {
@@ -1229,8 +1243,14 @@ offset_correction <- function(data, std = "ETH-3", grp = NULL,
              {{out}} := {{off}} < {{min}} | {{off}} > {{max}}) |>
       ## summarize_outlier() |>
       group_by_at(grp) |>
-      mutate({{off_good}} := ifelse(!outlier & (broadid %in% std), {{off}}, NA_real_),
-             {{off_avg}} := prm({{off_good}}, width, na.rm = TRUE, fill = "extend"),
+      mutate({{off_good}} := ifelse(!.data$outlier &
+                                      (.data$broadid %in% {{std}}),
+                                    {{off}},
+                                    NA_real_),
+             {{off_avg}} := prm({{off_good}}, 
+                                unique({{width}}),
+                                na.rm = TRUE, 
+                                fill = "extend"),
              {{cor}} := {{raw}} + {{off_avg}}) |>
       ungroup()
   }
@@ -1251,12 +1271,16 @@ offset_correction_wrapper <- function(data, acc) {
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
 
   data |>
-    append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$D47, exp = expected_D47) |>
-    offset_correction(std = str_split(data$off_D47_stds, " ", simplify = TRUE),
-                      grp = data$off_D47_grp,
-                      exp = expected_D47,
-                      raw = D47_raw_mean,
+    clumpedr::append_expected_values(std_names = acc$id, 
+                                     by = broadid,
+                                     std_values = acc$D47, 
+                                     exp = expected_D47) |>
+    offset_correction(std = str_split(.data$off_D47_stds, 
+                                      " ", 
+                                      simplify = TRUE),
+                      grp = "preparation",
+                      exp = .data$expected_D47,
+                      raw = .data$D47_raw_mean,
                       off = D47_offset,
                       off_good = D47_offset_good,
                       off_avg = D47_offset_average,
@@ -1266,15 +1290,23 @@ offset_correction_wrapper <- function(data, acc) {
                       min = .data$off_D47_min,
                       max = .data$off_D47_max) |>
     group_by(.data$preparation, .data$Line) |>
-    mutate(D47_offset_average_line = prm(D47_offset_good, .data$off_D47_width * 2, na.rm = TRUE, fill = "extend"),
-           D47_offset_corrected_line = D47_raw_mean + D47_offset_average_line) |>
+    mutate(D47_offset_average_line = prm(.data$D47_offset_good, 
+                                         .data$off_D47_width * 2, 
+                                         na.rm = TRUE, 
+                                         fill = "extend"),
+           D47_offset_corrected_line = .data$D47_raw_mean + 
+             .data$D47_offset_average_line) |>
     ungroup() |>
-    append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$d13C, exp = accepted_d13C) |>
-    offset_correction(std = str_split(.data$off_d13C_stds, " ", simplify = TRUE),
-                      grp = .data$off_d13C_grp,
-                      exp = accepted_d13C,
-                      raw = d13C_PDB_mean,
+    clumpedr::append_expected_values(std_names = acc$id, 
+                                     by = broadid,
+                                     std_values = acc$d13C, 
+                                     exp = expected_d13C) |>
+    offset_correction(std = str_split(.data$off_d13C_stds, 
+                                      " ", 
+                                      simplify = TRUE),
+                      grp = "preparation",
+                      exp = .data$expected_d13C,
+                      raw = .data$d13C_PDB_mean,
                       off = d13C_offset,
                       off_good = d13C_offset_good,
                       off_avg = d13C_offset_average,
@@ -1284,16 +1316,24 @@ offset_correction_wrapper <- function(data, acc) {
                       min = .data$off_d13C_min,
                       max = .data$off_d13C_max) |>
     group_by(.data$Line) |>
-    mutate(d13C_offset_average_line = prm(d13C_offset_good, .data$off_d13C_width * 2, na.rm = TRUE, fill = "extend"),
-           d13C_offset_corrected_line = d13C_PDB_mean + d13C_offset_average_line) |>
+    mutate(d13C_offset_average_line = prm(.data$d13C_offset_good, 
+                                          .data$off_d13C_width * 2, 
+                                          na.rm = TRUE, 
+                                          fill = "extend"),
+           d13C_offset_corrected_line = .data$d13C_PDB_mean + 
+             .data$d13C_offset_average_line) |>
     ungroup() |>
     # d18O
-    append_expected_values(std_names = acc$id, by = broadid,
-                           std_values = acc$d18O, exp = accepted_d18O) |>
-    offset_correction(std = str_split(.data$off_d18O_stds, " ", simplify = TRUE),
-                      grp = .data$off_d18O_grp,
-                      exp = accepted_d18O,
-                      raw = d18O_PDB_mean,
+    clumpedr::append_expected_values(std_names = acc$id, 
+                                     by = broadid,
+                                     std_values = acc$d18O, 
+                                     exp = expected_d18O) |>
+    offset_correction(std = str_split(.data$off_d18O_stds, 
+                                      " ",
+                                      simplify = TRUE),
+                      grp = "preparation",
+                      exp = .data$expected_d18O,
+                      raw = .data$d18O_PDB_mean,
                       off = d18O_offset,
                       off_good = d18O_offset_good,
                       off_avg = d18O_offset_average,
@@ -1303,8 +1343,12 @@ offset_correction_wrapper <- function(data, acc) {
                       min = .data$off_d18O_min,
                       max = .data$off_d18O_max) |>
     group_by(.data$Line) |>
-    mutate(d18O_offset_average_line = prm(d18O_offset_good, .data$off_d18O_width * 2, na.rm = TRUE, fill = "extend"),
-           d18O_offset_corrected_line = d18O_PDB_mean + d18O_offset_average_line) |>
+    mutate(d18O_offset_average_line = prm(.data$d18O_offset_good, 
+                                          .data$off_d18O_width * 2, 
+                                          na.rm = TRUE, 
+                                          fill = "extend"),
+           d18O_offset_corrected_line = .data$d18O_PDB_mean +
+             .data$d18O_offset_average_line) |>
     ungroup()
 }
 
@@ -1365,7 +1409,7 @@ summarise_cycle_outliers <- function(data) {
                                 purrr::possibly(~ sum(.$outlier_cycle, na.rm = TRUE), NA_real_)) / n_cyc,
       outlier_noscan = is.na(scan_group),
       outlier_nodelta = is.na(d47_mean),
-      outlier_cycles = prop_bad_cycles > data$prop_bad_cyc,
+      outlier_cycles = prop_bad_cycles > .data$prop_bad_cyc,
       ## prop_bad_param49s = map_dbl(cycle_data,
       ##                             purrr::possibly(~ sum(.$outlier_param49, na.rm = TRUE), NA_real_)) / n_cyc,
       ## outlier_param49 = param_49_mean > p49_crit | param_49_mean < -p49_crit,
@@ -1405,6 +1449,8 @@ create_reason_for_outlier <- function(data) {
                              ifelse(!is.na(outlier_offset_d18O) & outlier_offset_d18O, "  d18O_off\n", "")))
 }
 
+
+# export ------------------------------------------------------------------
 order_columns <- function(data, extra = NULL) {
   data |>
     tidylog::select(tidyselect::one_of(c(
@@ -1680,10 +1726,6 @@ add_remaining_meta <- function(data, meta) {
                    "Mineralogy")
 
   data |>
-    # we need to convert to integer because that's the type we gave it in the cleaned-up metadata
-    tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
-                                      readr::parse_double(Analysis),
-                                      NA_real_)) |>
     ## select(-one_of("Analysis")) |> # some are giving us issues!
     # we use a full join so that files that don't have any raw data are still included in the list!
     tidylog::full_join(meta |>
