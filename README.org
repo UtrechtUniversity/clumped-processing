@@ -57,3 +57,9 @@ this program. If not, see <https://www.gnu.org/licenses/>.
 * Contributing
 
 Contributions in the form of issues and pull requests are most welcome. However, the goal of this repository is to proccess clumped isotope data from the Utrecht University laboratory.
+
+* Citation
+
+If you use this software in your work, please cite it using the following metadata.
+
+Kocken, I. J. (2022). clumped-processing: R scripts to process clumped isotopes from raw data to final values at Utrecht Univerity (Version 1.0.0) [Computer software]. https://doi.org/10.5281/zenodo.6421836
