@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "To reference the latest version of the code, please cite as below."
+title: "clumped-processing: R scripts to process clumped isotopes from raw data to final values at Utrecht Univerity"
+authors:
+  - given-names: Ilja Japhir
+    family-names: Kocken
+    email: iljakocken <at> gmail.com
+    affiliation: Utrecht University
+    orcid: 'https://orcid.org/0000-0003-2196-8718'
+type: software
+license: "GPL-3"
+version: 1.0.0
+identifiers: 
+  - description: The concept DOI for the collection containing all versions of the Citation File Format.
+    type: doi
+    value: "10.5281/zenodo.6421836"
+keywords:
+  - clumped
+  - isotope
+  - processing
+  - raw data
+  - open science
+  - reproducible
+  - workflow
+  - targets
+doi: 10.5281/zenodo.6421836
+date-released: "2022-06-23"

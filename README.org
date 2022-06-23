@@ -1,12 +1,23 @@
 #+title: clumped-processing
 [[https://zenodo.org/badge/latestdoi/400205023][https://zenodo.org/badge/400205023.svg]]
 
-This is processing code for the clumped isotope measurements made with the Thermo Fisher MAT 253 plus isotope ratio mass spectrometer with the Kiel IV automatic line, located in the Vening-Meineszbuilding B, for the Stratigraphy and Paleontology group at Earth Sciences, UU.
+This is processing code for the clumped isotope (\Delta_{47}) measurements made with the Thermo Fisher MAT 253 plus isotope ratio mass spectrometer with the Kiel IV automatic line, located in the Vening-Meineszbuilding B, for the Stratigraphy and Paleontology group at Earth Sciences, UU.
 
-See [[file:full_literal_workflow.org]] for the entire workflow! This is a [[https://en.wikipedia.org/wiki/Literate_programming][literate programming]] example, where the code itself is surrounded by rich-text explanation.
-If we need to run the workflow, we can [[https://orgmode.org/manual/Extracting-Source-Code.html#Extracting-Source-Code][~tangle~ the files]] to generate the ~_targets.R~ file as well as the ~R/functions.R~ file.
+* ~targets~ explanation
 
-EDIT: 2022-06-21: now that we have implemented the workflow on a VM with the GEO-ICT, we started working in the ~_targets.R~ and ~functions.R~ files directly.
+Using the R-package [[https://wlandau.github.io/targets-manual/][targets]], we can run only those parts of the code that need to be updated. The basic structure is we first load the necessary libraries, then we define functions that do most of the work, and then a workflow of targets with function calls that ~targets~ analyses for inter-dependencies.
+
+* Deployment
+
+The workflow is deployed by [[https://www.uu.nl/en/organisation/faculty-of-geosciences/about-the-faculty/organisation/faculty-office][GEO-ICT]] and runs on a Windows Virtual Machine that is located close to the rawdata drive of the Geolab.
+
+This VM can read in the rawdata directly and synchronizes the metadata file and final output to the Clumped Isotope Teams OneDrive.
+
+To run the code, log in to the VM, start RStudio and run ~targets::tar_make()~ from the command line.
+
+* Dependencies
+
+We use the [[https://www.r-project.org/][R programming language]] >4.1.0 (because we use the native pipe ~|>~ operator every now and then).
 
 The required R packages for this workflow are:
 
@@ -25,3 +36,24 @@ The required R packages for this workflow are:
 - slider :: for the rolling empirical transfer function (currently not preferred)
 - targets :: for the cached reproducible pipeline workflow
 - tidylog :: for neat log messages about dplyr verbs
+
+* Copying
+
+The code was created by Ilja J. Kocken https://orcid.org/0000-0003-2196-8718
+Copyright 2022 © Ilja Kocken
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+
+* Contributing
+
+Contributions in the form of issues and pull requests are most welcome. However, the goal of this repository is to proccess clumped isotope data from the Utrecht University laboratory.

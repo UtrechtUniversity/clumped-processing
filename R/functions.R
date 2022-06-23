@@ -41,7 +41,8 @@ remove_copies <- function(data) {
   tidylog::distinct(data, file_name, file_size, .keep_all = TRUE)
 }
 
-# Batch reading in the files so that we have fewer dynamic targets. Do this per directory of results.
+# Batch reading in the files so that we have fewer dynamic targets. Do this per
+# directory of results.
 batch_files <- function(data) {
   tapply(data$file_path,
          INDEX = data$file_dir,  # also possible to batch by directory
@@ -49,7 +50,8 @@ batch_files <- function(data) {
     unname()
 }
 
-# The scans are not listed in separate directories, so we batch them by year+month.
+# The scans are not listed in separate directories, so we batch them by
+# year+month.
 batch_month <- function(data) {
   tapply(data$file_path,
          INDEX = data$file_year + 1/12 * data$file_month,
@@ -180,7 +182,8 @@ add_timeofday <- function(data) {
              lubridate::second(file_datetime) / 60 / 60)
 }
 
-# This compares the preparation/run number inside the file with the one in the filename/filepath.
+# This compares the preparation/run number inside the file with the one in the
+# filename/filepath.
 find_bad_runs <- function(data) {
   out <- data |>
     file_name_prep() |>
@@ -552,6 +555,7 @@ extract_file_info <- function(did) {
     clumpedr::append_ref_deltas(.did = did)
 }
 
+# function only used to create first set of metadata files
 create_metadata <- function(meta, file) {
    meta |>
      rename(c("manual_outlier" = "outlier_manual")) |>
