@@ -39,7 +39,6 @@ source("R/functions.R")
 # general and logbooks ---------------------------------------------------------
 # These general targets contain accepted standard values and excel logbooks.
 # Currently, the latter are not used in the pipeline.
-
 list(
   tar_target(
     accepted_standard_values_file,
@@ -220,7 +219,7 @@ list(
   ## processing.
   tar_target(
     motu_meta_file,
-    "dat/motu_metadata_parameters.xlsx",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -237,7 +236,7 @@ list(
   
   tar_target(
     motu_scn_meta_file,
-    "dat/motu_scn_metadata_parameters.xlsx",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_scn_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -633,19 +632,19 @@ list(
   ## export
   tar_target(
     motu_export,
-    tar_excel(motu_temperature, "out/motu_all_data_RAW.xlsx"),
+    tar_excel(motu_temperature, "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.xlsx"),
     format = "file"
   ),
   
   tar_target(
     motu_out,
-    tar_write(motu_temperature,  "out/motu_cycle_level_summaries.rds"),
+    tar_write(motu_temperature,  "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_cycle_level_summaries.rds"),
     format = "file"
   ),
   
   tar_target(
     motu_export_csv,
-    tar_csv(motu_temperature, "out/motu_all_data_RAW.csv"),
+    tar_csv(motu_temperature, "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.csv"),
     format = "file"
   ),
   
@@ -808,7 +807,7 @@ list(
   ## TODO: figure out how to get this from onedrive automatically
   tar_target(
     pacman_did_meta_file,
-    "dat/pacman_did_metadata_parameters.xlsx",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_did_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -823,7 +822,7 @@ list(
   
   tar_target(
     pacman_caf_meta_file,
-    "dat/pacman_caf_metadata_parameters.xlsx",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_caf_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -840,7 +839,7 @@ list(
   
   tar_target(
     pacman_scn_meta_file,
-    "dat/pacman_scn_metadata_parameters.xlsx",
+    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_scn_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -1470,14 +1469,14 @@ list(
   tar_target(
     pacman_export,
     tar_excel(pacman_temperature,
-              "out/pacman_all_data_RAW.xlsx"),
+              "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.xlsx"),
     format = "file"
   ),
   
   tar_target(
     pacman_out,
     tar_write(pacman_temperature,
-              "out/pacman_cycle_level_summaries.rds"),
+              "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_cycle_level_summaries.rds"),
     format = "file"
   ),
   
@@ -1485,7 +1484,7 @@ list(
     pacman_caf_out,
     tar_write(
       pacman_caf_temperature,
-      "out/pacman_caf_cycle_level_summaries.rds"
+      "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_caf_cycle_level_summaries.rds"
     ),
     format = "file"
   ),
@@ -1493,7 +1492,7 @@ list(
   tar_target(
     pacman_export_csv,
     tar_csv(pacman_temperature,
-            "out/pacman_all_data_RAW.csv"),
+            "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.csv"),
     format = "file"
   )
 )
