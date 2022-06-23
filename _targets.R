@@ -498,7 +498,8 @@ list(
   ),
   
   
-  # nesting and summarising still happens within each folder, because this is slow for the big db
+  # nesting and summarising still happens within each folder, because this is
+  # slow for the big db
   tar_target(
     motu_nested,
     motu_raw_deltas |>
@@ -977,6 +978,7 @@ list(
     pacman_file_info |>
       bind_rows() |>
       select(
+        Analysis,
         file_id,
         dis_min,
         dis_max,
@@ -1001,6 +1003,7 @@ list(
     pacman_caf_file_info |>
       bind_rows() |>
       select(
+        Analysis,
         file_id,
         dis_min,
         dis_max,
@@ -1072,7 +1075,7 @@ list(
       # there are some without Analysis
       tidylog::mutate(
         Analysis = ifelse(
-          "Analysis" %in% colnames(.data),
+          "Analysis" %in% colnames(pacman_caf_raw),
           readr::parse_double(Analysis),
           NA_real_
         )
@@ -1270,7 +1273,7 @@ list(
       # there are some without Analysis
       tidylog::mutate(
         Analysis = ifelse(
-          "Analysis" %in% colnames(.data),
+          "Analysis" %in% colnames(pacman_raw),
           readr::parse_double(Analysis),
           NA_real_
         )
