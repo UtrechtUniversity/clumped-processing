@@ -28,13 +28,16 @@ tar_option_set(
                "isoreader",
                "clumpedr",
                "slider"),
-  workspace_on_error = TRUE  # uncomment if you want to save workspaces on crash
+  workspace_on_error = TRUE
 )
 
-options(crayon.enabled = FALSE)
+# options(crayon.enabled = FALSE)
 options(clustermq.scheduler = "multicore")
 
 source("R/functions.R")
+
+# after how many days should we guarantee a re-run?
+our_update_interval <- as.difftime(50, units = "days") 
 
 # general and logbooks ---------------------------------------------------------
 # These general targets contain accepted standard values and excel logbooks.
@@ -116,8 +119,9 @@ list(
       batch_files(),
     # it now iterates over the directories
     iteration = "list",
+    # run if it hasn't been run in 3 days, for now
     cue = tarchetypes::tar_cue_age(name = motu_dids_paths_all,
-                                   age = as.difftime(3, units = "days"))
+                                   age = our_update_interval)
   ),
   
   tar_target(
@@ -149,7 +153,7 @@ list(
       batch_month(),
     iteration = "list",
     cue = tarchetypes::tar_cue_age(name = motu_scn_paths_all,
-                                   age = as.difftime(3, units = "days"))
+                                   age = our_update_interval)
   ),
   
   tar_target(
@@ -666,7 +670,7 @@ list(
     # it now iterates over the directories
     iteration = "list",
     cue = tarchetypes::tar_cue_age(name = pacman_dids_paths_all,
-                                   age = as.difftime(3, units = "days"))
+                                   age = our_update_interval)
   ),
   
   tar_target(
@@ -697,7 +701,7 @@ list(
     # it now iterates over the directories
     iteration = "list",
     cue = tarchetypes::tar_cue_age(name = pacman_caf_paths_all,
-                                   age = as.difftime(3, units = "days"))
+                                   age = our_update_interval)
   ),
   
   tar_target(
@@ -729,7 +733,7 @@ list(
       batch_month(),
     iteration = "list",
     cue = tarchetypes::tar_cue_age(name = pacman_scn_paths_all,
-                                   age = as.difftime(3, units = "days"))
+                                   age = our_update_interval))
   ),
   
   tar_target(
@@ -1269,6 +1273,7 @@ list(
   tar_target(
     pacman_raw_deltas,
     pacman_raw |>
+      rowwise() |>
       # somehow it's become a character
       # there are some without Analysis
       tidylog::mutate(
