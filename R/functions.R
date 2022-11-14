@@ -1387,7 +1387,7 @@ rolling_etf <- function(data,
       y_good = ifelse(!outlier, {{y}}, NA_real_),
       starts = row_number() - floor({{width}} / 2),
       stops = row_number() + floor({{width}} / 2),
-      fit = hop(cur_data(), # cur_data ensures I'm within a group
+      fit = slider::hop(cur_data(), # cur_data ensures I'm within a group
                 purrr::possibly(~ lm(y_good ~ x_good, data = .),
                                 list(coefficients = c("(Intercept)" = NA, "y_good" = NA))),
                 .starts = starts,
