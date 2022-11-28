@@ -1,3 +1,7 @@
+# let's make the interactive session a bit easier
+library(targets)
+library(tidyverse)
+
 # this just runs all targets
 targets::tar_make()
 
@@ -13,7 +17,9 @@ targets::tar_make(names=c(
   # the background scans
   motu_scn_meta_update, pacman_scn_meta_update,
   # the new rows for the metadata files
-  motu_meta_update, pacman_meta_update, pacman_caf_meta_update))
+  motu_meta_update, pacman_meta_update, pacman_caf_meta_update),
+  #shortcut = TRUE
+  )
 # now update your metadata files by copying out/..._update.xslx to the metadata
 # files on OneDrive
 
@@ -25,3 +31,5 @@ targets::tar_make(names=c(
   motu_export_csv, pacman_export_csv, pacman_caf_export_csv,
   # rds copies
   motu_out, pacman_out, pacman_caf_out))
+
+targets::tar_workspace(pacman_temperature)

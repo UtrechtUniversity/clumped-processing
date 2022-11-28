@@ -733,7 +733,7 @@ list(
       batch_month(),
     iteration = "list",
     cue = tarchetypes::tar_cue_age(name = pacman_scn_paths_all,
-                                   age = our_update_interval))
+                                   age = our_update_interval)
   ),
   
   tar_target(
