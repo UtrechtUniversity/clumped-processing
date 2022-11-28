@@ -463,7 +463,16 @@ filter_raw_duplicates <- function(data) {
 
 export_metadata <- function(data, meta, file) {
    data |>
-     tidylog::filter(Analysis > max(meta$Analysis, na.rm = TRUE)) |>
+     # NOTE: this only filters out the last ones!
+     # every now and then if you have issues, check if all
+     # analyses are in the metadata file 
+     # (e.g. see my 2022-11-04_pacman_extra_manual)
+     # tidylog::filter(Analysis > max(meta$Analysis, na.rm = TRUE)) |>
+     # NOTE: experimental fix: look for both Analysis and file_id 
+     # (because pacman doesn't have unique file_id's)
+     # and export everything that isn't in the metadata file yet
+     tidylog::filter(!(Analysis %in% meta$Analysis & 
+                       file_id %in% meta$file_id)) |>
      rename(c("manual_outlier" = "outlier_manual")) |>
      tidylog::select(all_of(c("Analysis",
                               "file_id",
