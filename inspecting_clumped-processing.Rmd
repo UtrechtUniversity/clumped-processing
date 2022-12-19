@@ -1,0 +1,1561 @@
+---
+title: "Useful inspection plots for the MotU"
+output: html_notebook
+---
+
+# Backlog and Notes
+2022-12-15: **NOTE** this is a messy file, use the Outline to navigate quickly!
+
+2022-12-16: **TODO** once this file is cleaned up and to your liking, include it in the targets pipeline so it auto-updates? https://books.ropensci.org/targets/literate-programming.html
+
+**TODO** make copies for pacman did/caf -> might need further tweaking because some metadata is different.
+
+Once you have [run the code](running_clumped-processing.Rmd), we can inspect the output!
+
+# Libraries
+This loads the libraries + plotting helpers (sam = scale_alpha_manual for outliers).
+
+```{r}
+  source("R/libraries.R")
+```
+# Interactive Plots
+
+If there is ever a plot you'd like to zoom in on, run this chunk!
+It'll be very slow for large plots with many points.
+
+```{r, eval=FALSE}
+ # convert to WebGL for speed
+ #plotly::toWebGL(
+   plotly::ggplotly(
+   # select the last ggplot object
+   # you can also replace that with an object that holds the plot
+   p = ggplot2::last_plot() + 
+     # disable the axis titles (needed in case you have formulae for the axes)
+     theme(axis.title.x = element_blank(), 
+           axis.title.y = element_blank()), 
+   # make new tickmarks show up when you zoom in/out
+   dynamicTicks = TRUE, height = NULL)
+  #)
+
+```
+# Custom Filters
+These are used to zoom in on only the measurements you want to see!
+
+Currently it focuses on the rang of Robin van der Ploeg's samples. We can adapt it to look at the most recent runs later.
+
+```{r}
+  scan_filter <- function(data) {
+    data |>
+      filter(scan_datetime > lubridate::ymd("2018-03-14") & 
+             scan_datetime < lubridate::ymd("2020-01-01")) 
+  } 
+
+  measurement_filter <- function(data) {
+    data |>
+      filter(file_datetime > lubridate::ymd("2018-03-14") & 
+               file_datetime < lubridate::ymd("2020-01-01"))
+  }
+```
+# Background Scans
+
+## Raw scans
+
+This is a plot of the raw scans. It takes quite a while to make, so it might be useful to filter first.
+
+```{r}
+    ## wr_scn_raw |>
+    pl_scn <- tar_read(motu_scn_fix) |>
+      bind_rows() |>
+      group_by(file_id) |>
+      ## filter(scan_datetime > lubridate::ymd("2021-10-10")) |> # update to latest processing
+      scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
+      pivot_longer(cols = v44.mV:v49.mV, names_to = "mass", values_to="intensity") |>
+      ggplot(aes(x=x, y=intensity, colour = mass## , linetype = scan_group
+                 )) +
+      geom_line(aes(group = paste(file_id, mass, voltage))) +
+      geom_vline(aes(xintercept = value, range = range, label = scan_group),
+                 data = #wr_scn_raw |>
+                   tar_read(motu_scn_fix) |>
+                   bind_rows() |>
+                   ## filter(scan_datetime > lubridate::ymd("2021-05-01")) |>
+                   scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
+                   ## tidylog::filter(scan_datetime <= lubridate::ymd("2018-12-10")) |>
+                   distinct(min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end, .keep_all = TRUE) |>
+                   pivot_longer(cols = c(min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end),
+                                names_to = "range", values_to = "value")) +
+      # below works but is very slow
+      ## facet_zoom(xlim = c(9.385, 9.465), ylim = c(-1000, 100), horizontal = FALSE) + # for the minimum
+      coord_cartesian(xlim = c(9.385, 9.465), ylim = c(-500, 100)) + # for the minimum
+      scale_x_continuous(breaks = seq(9, 10, .01), minor_breaks = seq(9, 10, .001)) #+
+      ## facet_grid(rows = vars(mass))
+
+    pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5), ylim = c(-500, 4e4))) + # for the maximum
+    plot_layout(guides = "collect")
+```
+
+## Min/Max vs. Time
+```{r}
+  tar_read(motu_scn_mod) |>
+    bind_rows() |>
+    # filter your range of interest
+    scan_filter() |> 
+     unnest(cols = data) |>
+     ggplot(aes(x = scan_datetime,
+                label = scan_group,
+                colour = factor(voltage),
+                file_id = file_id,
+                alpha = outlier_scan_manual,
+                ## y = min_44
+                ## y = min_45
+                ## y = min_46
+                y = min_47
+                ## y = min_48
+                ## y = min_49
+                ## y = min_54
+                ## y = max_44
+                )) +
+     geom_point() + sam
+     ## scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1))
+```
+## BG Models
+
+Here I also quickly fit 2nd order polynomials (parabola's) that go through the origin to see if they perform better than the already calculated (less visible) straight lines that are not forced through 0.
+
+It looks like for mass 45 it might make a difference, but then again the y-axis value is only 2 on a scale of 15000 so I'll just leave it be for now.
+
+```{r}
+  wr_minmaxs <- tar_read(motu_scn_mod) |>
+    bind_rows() |>
+    scan_filter() |>
+    unnest(cols = data) |>
+    # remove metadata for easier pivoting
+    select(-c(min, max, min_start_44, min_end_44, 
+              min_start_45_49, min_end_45_49, 
+              max_start, max_end)) |>
+    pivot_longer(cols = starts_with("min_"), 
+                 names_to = "min_mass", 
+                 values_to = "minimum") |>
+    mutate(mass = str_extract(min_mass, "\\d{2}"))
+
+  wr_minmaxs |>
+    ggplot(aes(x = max_44, y = minimum, #colour = mass,
+               label = scan_group,
+               file_id = file_id)) +
+    ## geom_smooth(aes(group = mass), method = "lm", se = F) +
+    ## geom_smooth(aes(group = mass), formula = y ~ x - 1, method = "lm", se = F, colour = "orange") +
+    ## geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
+    ##             formula = y ~ poly(x, 2, raw = TRUE) - 1,
+    ##             method = "lm", se = F, alpha = .2) +
+    geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
+                formula = y ~ poly(x, 3, raw = TRUE),
+                method = "lm", se = F, alpha = .2, data = wr_minmaxs |> filter(!outlier_scan_manual)) +
+    geom_point(aes(alpha = outlier_scan_manual, colour = scan_datetime), size = 3) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    ## geom_abline(aes(slope = slope, intercept = intercept, colour = scan_datetime),
+    ##             data = wr_lines,
+    ##             alpha = .1) +
+    ## geom_hline(yintercept = -500, colour = "red") +
+    facet_wrap(vars(mass), scales = "free_y")
+```
+
+## Weird Scans
+I think by now I've adjusted all the ranges to match all the WR scans that had weird slopes before, remainder may be from contamination (e.g. 190619 etc.)
+
+```{r}
+  weird_scans <- c(#"17April2018", # problematic ones
+                   ## "22November2017", ## "17April2018", # large shift in x, even after correcting off from remainder
+                   ## "190415" # this run has very different ETH-1 and ETH-2, but appears normal here
+                   ## this whole period has very weird scans, machine contaminated with corals? continues probably until 2019-07-02
+      ## "14March2018", "16March2018", "19March2018", "21March2018", "22March2018", "23March2018"
+      ## "17April2018"
+      ## "14September2018"
+      "190130"
+                   ## "190619"## ,
+                   ## "190621",
+                   ## "190624",
+                   ## "190625",
+                   ## "190627",
+                   ## "190628", ## between 2020-01-03 and 2020-04-07 there is larger scatter than usual!
+                   ## "200213", # not as bad as before anymore after adjusting ranges
+                   ## "200302",
+                   ## "200831", # is higher than bracketing scans
+                   ## "200901", # is higher than bracketing scans
+                   ## "200903" # is higher than bracketing scans
+                   ## "201216", # fixed after adjusting scan range
+                   ## "201223", # maybe a bit low?
+                   ## "210104",
+                   ## "210107", # fixed after adjusting scan range
+                   ## "210114",
+                   ## "210115" # a little high but they all are
+                   )
+
+  tar_read(motu_scn_fix) |>
+    bind_rows() |>
+    tidylog::filter(scan_group %in% weird_scans) |>
+    pivot_longer(cols = v44.mV:v49.mV, 
+                 names_to = "mass", 
+                 values_to="intensity") |>
+    ggplot(aes(x=x, y=intensity, 
+               colour = mass, 
+               sg = scan_group, 
+               fi = file_id, 
+               fd = file_datetime, 
+               fs = fix_software, 
+               o = outlier_scan_manual)) +
+    geom_line(aes(group = paste(file_id, mass, voltage))) +
+    sam +
+    geom_vline(aes(xintercept = value),
+               data = tar_read(motu_scn_mod) |>
+                 bind_rows() |>
+    filter(scan_group %in% weird_scans) |>
+                 unnest(data) |>
+                 distinct(min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end) |>
+                 pivot_longer(cols = c(starts_with("min"), starts_with("max")))) #+
+    ## facet_wrap(vars(scan_group))
+```
+
+# Inspect the metadata
+
+## Analysis
+Are all the files represented in the metadata file?
+```{r}
+  mm <- tar_read(motu_metadata) |> bind_rows()
+  mi <- tar_read(motu_file_info) |> bind_rows()
+
+  c(analysis = all(mm$Analysis %in% mi$Analysis), file_id = all(mm$file_id %in% mi$file_id))
+```
+
+## file_id
+which file_id's that are in the metadata are not in the file info?
+These rows need to be deleted from the ~motu_metadata_parameters~ excel file
+```{r}
+  mm |> tidylog::filter(!file_id %in% mi$file_id)
+```
+
+## which file_id's that are in the file info are not in the metadata?
+These need to be added to the metadata
+```{r}
+  # motu info, filtered for those file_id's that are NOT in motu_metadata
+  mi |> tidylog::filter(!file_id %in% mm$file_id | !Analysis %in% mm$Analysis) |>
+    # copied from export_metadata
+    rename(c("manual_outlier" = "outlier_manual")) |>
+       tidylog::select(all_of(c("Analysis",
+                                "file_id",
+                                "file_root",
+                                "file_subpath",
+                                "file_path",
+                                "file_datetime",
+                                "file_size",
+                                "Row",
+                                "Peak Center",
+                                "Background",
+                                "Pressadjust",
+                                "Reference Refill",
+                                "Line",
+                                "Sample",
+                                "Weight [mg]",
+                                "Identifier 1",
+                                "Identifier 2",
+                                "Comment",
+                                "Preparation",
+                                "Method",
+                                # new columns!
+                                "ref_mbar",
+                                "ref_pos",
+                                "bellow_pos_smp",
+                                "init_int",
+                                "background",
+                                "PC",
+                                "VM1_aftr_trfr",
+                                "CO2_after_exp",
+                                "no_exp",
+                                "total_CO2",
+                                "p_gases",
+                                "p_no_acid",
+                                "extra_drops",
+                                "leak_rate",
+                                "acid_temperature",
+                                "MS_integration_time.s",
+                                "timeofday",
+                                "d13C_PDB_wg",
+                                "d18O_PDBCO2_wg",
+                                # /new columns
+                                "s44_init",
+                                "r44_init",
+                                # more new parms columns
+                                ## "bg_group",
+                                "scan_group",
+                                "scan_datetime",
+                                "scan_files",
+                                "scan_n",
+                                "bg_fac",
+                                "dis_min", "dis_max", "dis_fac", "dis_rel",
+                                "init_low", "init_high", "init_diff",
+                                "p49_crit",
+                                "prop_bad_param49",
+                                "prop_bad_cyc",
+                                "sd_D47", "sd_d13C", "sd_d18O",
+                                "off_D47_min", "off_D47_max", "off_D47_grp", "off_D47_width", "off_D47_stds",
+                                "off_d13C_min", "off_d13C_max", "off_d13C_grp", "off_d13C_width", "off_d13C_stds",
+                                "off_d18O_min", "off_d18O_max", "off_d18O_grp", "off_d18O_width", "off_d18O_stds",
+                                "etf_stds", "etf_width",
+                                "acid_fractionation_factor",
+                                "temperature_slope", "temperature_intercept",
+                                # /parms columns
+                                "manual_outlier",
+                                "Preparation_overwrite",
+                                "Identifier 1_overwrite",
+                                "Identifier 2_overwrite",
+                                "Weight [mg]_overwrite",
+                                "Comment_overwrite",
+                                "scan_group_overwrite",
+                                "Mineralogy",
+                                "checked_by",
+                                "checked_date",
+                                "checked_comment"))) |>
+       writexl::write_xlsx("out/more_motu.xlsx")
+```
+
+## preparation assignment
+Did we fix all the run number assignments when they were entered incorrectly? (Often we forgot to update the field in the sequence, but we did update the filenames.)
+
+```{r}
+  tar_read(motu_badruns) |> 
+  tidylog::left_join(tar_read(motu_metadata) |> 
+                       select(file_id, Preparation_overwrite))
+```
+
+This should be empty if all runs have been assigned correct run numbers
+```{r}
+  tar_read(motu_temperature) |>
+    group_by(preparation) |>
+    ## group_by(Preparation) |>
+    mutate(mn = min(file_datetime), mx = max(file_datetime)) |>
+    ## filter(mn > mx)
+    distinct(preparation, .keep_all = TRUE) |>
+    select(file_id, Preparation, preparation, mn, mx) |>
+    tidylog::mutate(wrong = mx > lag(mn) | mn < lead(mx)) |>
+    ## filter(preparation != Preparation)
+    tidylog::filter(wrong) |>
+    glimpse()
+    ## tidylog::filter(preparation %in% 85:87) |>
+```
+
+# All Raw Cycles
+These become slow pretty quickly, adjust your `measurement_filter`!
+
+```{r}
+  tar_read(motu_raw_deltas) |>
+    bind_rows() |>
+    measurement_filter() |>
+    add_count(file_id, Analysis) |>
+    mutate(Analysis = parse_double(Analysis)) |>
+    select(-scan_files) |>
+    rename(cycle_outlier_temp = outlier) |>
+    tidylog::left_join(tar_read(motu_temperature) |>
+                       bind_rows()) |>
+    mutate(out = cycle_outlier_temp | outlier) |>
+    ## filter(!cycle_has_drop) |> # i've checked the dropped cycles now, they seem good. This shows the remainder. Did I miss anything?
+    ## filter(!cycle_outlier_temp, !outlier) |>
+    ## pivot_longer(cols = c(r44:s54, s45_bg:r49_bg), names_to = "mass", values_to = "intensity") |>
+    ## glimpse()
+    ggplot(aes(x = cycle, group = paste(file_id, Analysis), a = Analysis, alpha = out,
+               colour = broadid)) +
+    ## gghighlight(cycle_has_drop_s44) +
+    geom_line(aes(y = s44), alpha = .4) +
+    ## gghighlight(cycle_has_drop_r44) +
+    geom_line(aes(y = r44), alpha = .4) +
+    sam +
+    facet_grid(cols = vars(n), rows = vars(out),
+               scales = "free", space = "free") + theme(legend.pos = "top")
+```
+
+## initial intensity outliers
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |> 
+    ggplot(aes(x = file_datetime, y = s44_init, 
+               colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    sam +
+    geom_point() +
+    geom_rug(aes(y = NULL),
+               data = tar_read(motu_temperature) |> filter(is.na(s44_init)),
+               colour = "red", show.legend = FALSE) +
+    geom_hline(yintercept = tar_read(motu_temperature) |>
+                 distinct(init_low, init_high) |> unlist())
+```
+
+
+### difference in initial intensity outliers
+```{r}
+  tar_read(motu_temperature) |>
+    ## filter(file_id %in% wr_ss$file_id) |>
+    measurement_filter() |> # the whole range for Robin van der Ploeg's MECO runs
+    ggplot(aes(x = file_datetime, y = s44_init - r44_init, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    sam +
+    geom_point() +
+    # here I plot it as the diff, but in the calculations I use abs(s44 - r44)
+    geom_hline(yintercept = tar_read(motu_temperature) |>
+                 distinct(init_diff) |> unlist() * c(-1, 1)) +
+    coord_cartesian(ylim = c(-3000, 3000))
+```
+
+
+# Measurement Info
+Plot all the stuff from IsoDat.
+
+**** acid temperature
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = acid_temperature, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** ref_mbar
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = ref_mbar, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+```
+**** ref_pos
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = ref_pos, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** COMMENT bellow_pos_smp always 100
+```{r}
+  tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = bellow_pos_smp, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** init_int : not more informative than s44_init or r44_init
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = init_int, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** COMMENT background always NA
+```{r}
+  tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = background, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** PC : peak centre
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = PC, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+this peak center PC is the same as the ~step~ in the scan data! So we can see where it does the peak centering in the scans for comparison.
+Seems like it might be a bit too much to the right for the latest measurements?
+
+```{r}
+  tar_read(motu_scn_fix) |>
+    bind_rows() |>
+    scan_filter() |>
+    pivot_longer(v44.mV:v49.mV, names_to = "mass", values_to = "intensity") |>
+    ggplot(aes(x = x, y = intensity, colour = mass)) +
+    geom_line(aes(group = paste(file_id, voltage, mass))) +
+    geom_vline(xintercept = c(9.392386, 9.39527, 9.424277, 9.429723, 9.463, 9.466)) +
+    scale_x_continuous(breaks = seq(0, 10, 0.01), minor_breaks = seq(0, 10, 0.001)) +
+    coord_cartesian(ylim = c(-500, 200))
+    ## geom_vline(xintercept=c(62100, 62130), colour = "red")  # manually entered the range in the last period
+```
+
+make sure that we have set a nice range similar to the PC here
+```{r}
+  library(patchwork)
+  (tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = PC, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point()) /
+  (ggplot(tar_read(motu_scn_meta), aes(x = file_datetime, y = min_start_45_49, alpha = manual_outlier, label = scan_group)) + geom_point() + geom_point(aes(y = min_end_45_49))) /
+  (ggplot(tar_read(motu_scn_meta), aes(x = file_datetime, y = max_start, alpha = manual_outlier, label = scan_group)) + geom_point() + geom_point(aes(y = max_end)))
+```
+
+**** VM1_aftr_trfr
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = VM1_aftr_trfr, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(NA, 200))
+```
+
+**** CO2_after_exp
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = CO2_after_exp, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier
+               )) +
+    geom_point() +
+    ## gghighlight(VM1_aftr_trfr > 0) +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** COMMENT no_exp always 0
+```{r}
+  tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = no_exp, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** total_CO2
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = total_CO2, colour = broadid, alpha = outlier,
+               ## a = Analysis, fi = file_id, ro = reason_for_outlier
+               )) +
+    geom_point() +
+    ## gghighlight(VM1_aftr_trfr > 0) +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** total_CO2 vs initial intensity
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = init_int, y = total_CO2, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier
+               )) +
+    geom_point() +
+    ## gghighlight(file_datetime > as.POSIXct(ymd("2021-05-10"))) +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** total_CO2 vs weight
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    filter(broadid != "other") |>
+    ggplot(aes(x = `Weight [mg]`, y = total_CO2, colour = broadid## factor(Line)
+             , alpha = outlier,
+               ## a = Analysis, fi = file_id, ro = reason_for_outlier
+               )) +
+    geom_point() +
+    ## gghighlight(file_datetime > as.POSIXct(ymd("2021-05-10"))) +
+    sam +
+    facet_grid(cols = vars(outlier)) +
+    geom_smooth(aes(group = "all"), method = "lm")
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** p_gases
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = p_gases, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** p_no_acid
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = p_no_acid, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    sam
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** COMMENT extra_drops always 1 or 0
+```{r}
+  tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = extra_drops, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+**** leak rates
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = leak_rate, ## colour = Row,
+               alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() +
+    geom_hline(yintercept = 900) + # I think this is when it cancels the sample/stops the run?
+    geom_smooth(aes(group = Line)) +
+    sam +
+    facet_grid(rows = vars(Line))
+```
+
+**** MS_integration_time.s
+```{r}
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = MS_integration_time.s, colour = broadid, alpha = outlier,
+               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+    geom_point() #+
+    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+```
+
+# Raw Data
+## raw D47
+```{r}
+  pl_D47raw <- tar_read(motu_temperature) |> bind_rows() |>
+    measurement_filter() |>
+    arrange(file_id, Analysis, file_datetime) |>
+
+    ggplot(aes(x=file_datetime,
+               y=D47_raw_mean,
+               ## shape = outlier_param49,
+               ymin=D47_raw_mean-D47_raw_sd,
+               ymax=D47_raw_mean+D47_raw_sd,
+               col=broadid,
+               file_id = file_id,
+               Analysis = Analysis,
+               preparation = preparation,
+               sg = scan_group,
+               reason_for_outlier = reason_for_outlier,
+               alpha=outlier)) +
+
+     ## # annotate logbook issues etc.
+     ## geom_vline(aes(xintercept = datetime,
+     ##                n = Name,
+     ##                p = `Samples (Name, material, #)`,
+     ##                label = `Comments (issues, observations, maintenance):`),
+     ##            data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_text(aes(x = datetime, y = .2, label = Name),
+     ##           hjust = 0, size = 3,
+     ##           inherit.aes = FALSE,
+     ##           data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_vline(aes(xintercept = Date,
+     ##                n = Name,
+     ##                p = `Problem (issues, observations):`,
+     ##                a = Actions),
+     ##            data = tar_read(motu_maintenance)) +
+     ## geom_pointrange() +
+
+     # annotate measurements that didn't get a D47_raw_mean value
+     geom_rug(sides = "b", data = ## wr_ss
+              tar_read(motu_temperature) |> 
+                filter(is.na(D47_raw_mean)) |>
+                measurement_filter()
+              ) + # annotate failed measurements
+
+    # vertical lines for each scan start
+    geom_vline(aes(xintercept = scan_datetime, sg = scan_group, bgg = bg_group),
+               colour = "cyan", alpha = .3,
+               data = tar_read(motu_temperature) |>
+                 measurement_filter() |>
+                 distinct(scan_datetime, .keep_all = TRUE)
+               ) +
+
+    # segments for each preparation (is nicest for interactive graph)
+    geom_segment(aes(x = mn, xend = mx, y = 0.2, yend = 0.2, prep = preparation),
+                 alpha = .4, size = 2,
+                 inherit.aes = FALSE,
+                 data = tar_read(motu_temperature) |>
+                 measurement_filter() |>                  
+                   group_by(preparation) |>
+                   summarize(mn = min(file_datetime), mx = max(file_datetime))
+                 ) +
+
+     # the data itself
+     geom_errorbar(aes(ymin = D47_raw_lwr, ymax = D47_raw_upr)) +
+     geom_point() +
+     geom_line(aes(group = broadid)) +
+
+     # customize the plot legends etc.
+     scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+     labs(y = "Raw Δ47") +
+     coord_cartesian(## xlim = c(
+                     ##  ## as.POSIXct(ymd("2020-12-17")),
+                     ##  as.POSIXct(ymd("2018-02-23")),
+                     ##  ## as.POSIXct(today())
+                     ##  ## as.POSIXct(today() - months(3)),
+                     ##  ## as.POSIXct(today() - weeks(2)),
+                     ##  ## as.POSIXct(today() - days(10)),
+                     ##  NA
+                     ## ),
+       ylim = c(-.7, .2))
+  pl_D47raw
+```
+
+I've added logbook and maintenance notes (commented out now), this makes this full-view figure very useless, but this is great for the interactive version of the plot.
+
+## raw D48
+```{r}
+  pl_D48raw <- tar_read(motu_temperature) |> 
+  bind_rows() |>
+  measurement_filter() |>
+    filter(!outlier, broadid == "IAEA-C2", # file_datetime > as.POSIXct("2021-04-01")
+           ) |>
+    arrange(file_id, Analysis, file_datetime) |>
+    ggplot(aes(x=file_datetime,
+               y=D48_raw_mean,
+               ## shape = outlier_param49,
+               ymin=D48_raw_mean-D48_raw_sd,
+               ymax=D48_raw_mean+D48_raw_sd,
+               col=broadid,
+               file_id = file_id,
+               Analysis = Analysis,
+               preparation = preparation,
+               sg = scan_group,
+               reason_for_outlier = reason_for_outlier,
+               alpha=outlier)) +
+     ## geom_vline(aes(xintercept = datetime,
+     ##                n = Name,
+     ##                p = `Samples (Name, material, #)`,
+     ##                label = `Comments (issues, observations, maintenance):`),
+     ##            data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_text(aes(x = datetime, y = .2, label = Name),
+     ##           hjust = 0, size = 3,
+     ##           inherit.aes = FALSE,
+     ##           data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_vline(aes(xintercept = Date,
+     ##                n = Name,
+     ##                p = `Problem (issues, observations):`,
+     ##                a = Actions),
+     ##            data = tar_read(motu_maintenance)) +
+     ## geom_pointrange() +
+     ## geom_rug(sides = "b", data = ## wr_ss
+     ##          tar_read(motu_temperature) |> filter(is.na(D47_raw_mean))
+     ##          ) +
+    # annotate failed measurements
+     geom_point() +
+     geom_line(aes(group = broadid)) +
+     ## gghighlight(.data$file_id %in% wr_ss$file_id) +
+     scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+     labs(y = "Raw Δ48") +
+     coord_cartesian(## xlim = c(
+                     ##  ## as.POSIXct(ymd("2020-12-17")),
+                     ##  as.POSIXct(ymd("2018-02-23")),
+                     ##  ## as.POSIXct(today())
+                     ##  ## as.POSIXct(today() - months(3)),
+                     ##  ## as.POSIXct(today() - weeks(2)),
+                     ##  ## as.POSIXct(today() - days(10)),
+                     ##  NA
+                     ## ),
+       ylim = c(-5, 5)
+       ) +
+      geom_hline(yintercept = c(-1, 1))
+  pl_D48raw
+```
+
+# Background Factors
+## what are the bg factors?
+```{r}
+  tar_read(motu_metadata) |>
+    measurement_filter() |>
+   ggplot(aes(x = file_datetime, y = bg_fac, fi = file_id, a = Analysis)) +
+   geom_point() #+
+   ## coord_cartesian(ylim = c(0, 1))
+```
+## background factors from final averages
+We can calculate this already at the raw_cycle level so that we do not have to do unnecessary computations for bad bg factors.
+
+This does mean we have to redo some simple house-keeping, i.e. getting ETH-1 and ETH-2 filtered out somehow.
+
+```{r}
+  pl_bgc <- tar_read(motu_temperature) |>
+    measurement_filter() |>
+    filter(broadid %in% c("ETH-1", "ETH-2", "Merck")) |>
+    # cut up into monthly/yearly slices and tweak factor accordingly?
+    ggplot(aes(x = file_datetime, y = D47_raw_mean, colour = broadid, alpha = outlier, #label = reason_for_outlier,
+               fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, p = preparation)) +
+    geom_point() +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    ## # a simple loess fit
+    ## geom_smooth(aes(linetype = outlier, group = broadid), method = "loess", se = F, span = .1,
+    ##             data = tar_read(motu_temperature) |>
+    ##               filter(!outlier, broadid %in% c("ETH-1", "ETH-2"))) +
+    ## # a weekly average line
+    ## stat_summary(aes(x = summ, group = broadid), geom = "line",
+    ##              alpha = .4, size = 2,
+    ##              data = tar_read(motu_temperature) |>
+    ##                filter(# Analysis %in% wr_ss$Analysis,
+    ##                  broadid %in% c("ETH-1", "ETH-2"), !outlier) |>
+    ##                mutate(summ = lubridate::floor_date(file_datetime, "week"))
+    ##              ) +
+    # a line through all the preparation averages
+    stat_summary(aes(x = summ, group = broadid), geom = "line",
+                 alpha = .4, #size = 2,
+                 data = tar_read(motu_temperature) |>
+                   filter(# Analysis %in% wr_ss$Analysis,
+                     broadid %in% c("ETH-1", "ETH-2"), !outlier) |>
+                   group_by(preparation) |>
+                   mutate(summ = mean(file_datetime))
+                 ) +
+    # segments for each preparation (is nicest for interactive graph)
+    stat_summary(aes(x = mn, xend = mx, group = broadid), geom = "segment",
+                 alpha = .4, size = 2,
+                 fun.data = ~ data.frame(y = mean(.x, na.rm = TRUE), yend = mean(.x, na.rm = TRUE)),
+                 data = tar_read(motu_temperature) |>
+                   group_by(preparation) |>
+                   mutate(summ = mean(file_datetime), mn = min(file_datetime), mx = max(file_datetime)) |>
+                   filter(# Analysis %in% wr_ss$Analysis,
+                     broadid %in% c("ETH-1", "ETH-2"), !outlier)
+                 ) +
+    geom_point(aes(y = bg_fac / 10 - .7), colour = "black", data = tar_read(motu_temperature)) +
+    coord_cartesian(ylim = c(-.74, -.07))
+  pl_bgc
+```
+
+for the interval between 2020-01 and 2020-11 I've first tried changing the bg factor from:
+- 0.9 (default for rest)
+- 1.0 seems to make it a lot better!
+- 0.7 made them move very far apart
+
+this is quite slow to calculate so I only tried a few. Note that perhaps the BG fac should be changed to 1 also for the most recent runs!
+
+for the one interval that's acting up weird (end of 2019) we currently tried:
+bg factor (sorted by factor in the end)
+- 0.7 ETH-2 is lower than ETH-1
+- 0.8: ETH-2 is lower than ETH-1, farther apart.
+- 0.85: ETH-2 is still lower than ETH-1, but they're much closer
+- 0.9 (default) ETH-1 is XXX than ETH-2 (forgot :O)
+- 0.91 (so that I can still search and replace if I need to change these values): now they're great, but they cross near 5402
+- 0.99 ETH-1 is lower than ETH-2, but closer. So perhaps I just overshot it with 0.7?
+
+for the youngest part (since 15089 until 21275), I have overshot it a bit with the bg fac of
+- 1: ETH-1 is slightly lower than ETH-2
+- 0.95: now ETH-2 is lower during
+
+then I tweaked some more parts where it seemed obvious that for several runs one of the two was higher/lower than the other.
+
+**** did these issues get fixed in final values?
+```{r}
+  ## pl_bgc <- #wr_raw_ss |>
+   library(patchwork)
+    tar_read(motu_temperature) |>
+    measurement_filter() |>
+    filter(## Analysis %in% wr_ss$Analysis,
+           broadid %in% c("ETH-1", "ETH-2")) |>
+    ggplot(aes(x = file_datetime, y = D47_final, colour = broadid, alpha = outlier, label = reason_for_outlier,
+               fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, f = bg_fac)) +
+  geom_point() +
+  geom_point(aes(y = bg_fac / 10), colour = "black", data = tar_read(motu_temperature)) +
+  scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+  ## geom_smooth(aes(group = broadid), method = "loess", se = F, span = .3,
+  ##               data = # wr_raw_ss |> filter(!is.na(outlier_manual) & !outlier_manual)
+  ##                 tar_read(motu_temperature) |>
+  ##                 filter(## Analysis %in% wr_ss$Analysis,
+  ##                        broadid %in% c("ETH-1", "ETH-2"), !outlier)
+  ##               ) +
+  stat_summary(aes(x = summ, group = broadid), geom = "line",
+               alpha = .4,
+               data = tar_read(motu_temperature) |>
+                 filter(# Analysis %in% wr_ss$Analysis,
+                   broadid %in% c("ETH-1", "ETH-2"), !outlier) |>
+                 group_by(preparation) |>
+                 mutate(summ = mean(file_datetime))
+               ) +
+    stat_summary(aes(x = mn, xend = mx, group = broadid), geom = "segment",
+                 alpha = .4, size = 2,
+                 fun.data = ~ data.frame(y = mean(.x, na.rm = TRUE), yend = mean(.x, na.rm = TRUE)),
+                 data = tar_read(motu_temperature) |>
+                   group_by(preparation) |>
+                   mutate(summ = mean(file_datetime), mn = min(file_datetime), mx = max(file_datetime)) |>
+                   filter(# Analysis %in% wr_ss$Analysis,
+                     broadid %in% c("ETH-1", "ETH-2"), !outlier)
+                 ) +
+  coord_cartesian(ylim = c(0., .45))
+```
+
+**** what does the final d47 vs D47 plot look like?
+```{r}
+  tar_read(motu_temperature) |>
+    ## filter(broadid != "other") |>
+  ## filter(Analysis %in% wr_ss$Analysis) |>
+    ## # do we see differences between species?
+    ## mutate(specsub = case_when(str_detect(file_id, "Pyr") ~ "Pyrgo spp.",
+    ##                            str_detect(file_id, "Wuell") ~ "Cib. wuell.",
+    ##                            str_detect(file_id, "Ou") ~ "Ori. umb.",
+    ##                            str_detect(file_id, "Cw") ~ "Cib. wuell.",
+    ##                            str_detect(file_id, "Cm") ~ "Cib. mun.",
+    ##                            TRUE ~ "other")) |>
+    measurement_filter() |>
+  ggplot(aes(x = d47_mean, y = D47_raw_mean, colour = broadid, alpha = outlier, label = reason_for_outlier,
+             fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, f = bg_fac)) +
+    geom_point(## aes(shape = specsub)
+               ) +
+    ## geom_point(aes(y = bg_fac / 10), colour = "black", data = tar_read(motu_temperature)) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    ggnewscale::new_scale_colour() +
+    stat_smooth(aes(group = preparation, colour = bg_fac), geom = "line", method = "lm", se = F, alpha = .3,
+                data = # wr_raw_ss |> filter(!is.na(outlier_manual) & !outlier_manual)
+                  tar_read(motu_temperature) |>
+                  filter(## Analysis %in% wr_ss$Analysis,
+                    broadid %in% c("ETH-1", "ETH-2"), !outlier)
+                ) +
+    coord_cartesian(xlim = c(-40, 22), ylim = c(-.7, .15))
+```
+
+the bottom line that's sloped downward (lower ETH-1 than ETH-2) is preparation 447 \to it's bg_fac should be changed from 0.95 to 0.91
+
+# Critical P49
+
+*** motu
+```{r}
+  pl_p49 <- tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = param_49_mean, colour = broadid,
+               alpha = outlier, label = reason_for_outlier,
+               fi = file_id, a = Analysis)) +
+     ## geom_vline(aes(xintercept = datetime,
+     ##                n = Name,
+     ##                p = `Samples (Name, material, #)`,
+     ##                label = `Comments (issues, observations, maintenance):`),
+     ##            data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_vline(aes(xintercept = Date,
+     ##                n = Name,
+     ##                p = `Problem (issues, observations):`,
+     ##                a = Actions),
+     ##            data = tar_read(motu_maintenance), alpha = .4) +
+  geom_point() +
+  geom_line(aes(group = broadid)) +
+  scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+  geom_hline(yintercept = tar_read(motu_temperature) |> distinct(p49_crit) |> pull(p49_crit) * c(-1, 1)) +
+  geom_hline(yintercept = c(-.3, -.2, .2, .3), colour = "red") +
+  coord_cartesian(ylim = c(-1, 1))
+  pl_p49
+```
+
+# SDx4
+
+** standard deviations of individual measurements
+
+## d13C
+we can also calculate the average standard deviation and multiply it by 4 to find a very very weak criterion
+```{r}
+  motu_d13C_weak <- tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ## tidylog::filter(!is.na(outlier_init), !outlier_init, !is.na(outlier_cycles), !outlier_cycles) |>
+    tidylog::filter(!outlier) |>
+    pull(d13C_PDB_sd) |>
+    median()
+
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = d13C_PDB_sd, colour = broadid, alpha = outlier, label = reason_for_outlier,
+               a = Analysis, fi = file_id, s4i = s44_init, r4i = r44_init, p49 = param_49_mean)) +
+    geom_point() +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    geom_hline(yintercept = tar_read(motu_temperature) |> distinct(sd_d13C) |> pull(sd_d13C)) +
+    geom_hline(yintercept = motu_d13C_weak * c(1, 2, 3, 4), colour = "red") +
+    coord_cartesian(ylim = c(0, .2))
+```
+
+## d18O
+```{r}
+  motu_d18O_weak <- tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ## tidylog::filter(!is.na(outlier_init), !outlier_init, !is.na(outlier_cycles), !outlier_cycles) |>
+    tidylog::filter(!outlier) |>
+    pull(d18O_PDB_sd) |>
+    median()
+
+  ## wr_ss |>
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = d18O_PDB_sd, colour = broadid, alpha = outlier, label = reason_for_outlier,
+               a = Analysis, fi = file_id, s4i = s44_init, r4i = r44_init, p49 = param_49_mean)) +
+    geom_point() +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    geom_hline(yintercept = tar_read(motu_temperature) |> distinct(sd_d18O) |> pull(sd_d18O)) +
+    geom_hline(yintercept = motu_d18O_weak * c(1, 2, 3, 4), colour = "red") +
+    coord_cartesian(ylim = c(0, .5))
+```
+
+
+## D47
+
+```{r}
+  motu_D47_weak <- #wr_ss |>
+    tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ## tidylog::filter(!is.na(outlier_init), !outlier_init, !is.na(outlier_cycles), !outlier_cycles) |>
+    tidylog::filter(!outlier) |>
+    pull(D47_raw_sd) |>
+    median()
+
+  # wr_ss |>
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = D47_raw_sd, colour = broadid, alpha = outlier, label = reason_for_outlier,
+               a = Analysis, fi = file_id, s4i = s44_init, r4i = r44_init, p49 = param_49_mean)) +
+    geom_point() +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    geom_hline(yintercept = tar_read(motu_temperature) |> distinct(sd_D47) |> pull(sd_D47)) +
+    geom_hline(yintercept = motu_D47_weak * c(1, 2, 3, 4), colour = "red") +
+    coord_cartesian(ylim = c(0, .5))
+```
+
+# Cycles for high-SD samples
+
+*** motu
+**** attach the cycle data to the final clumped values
+note that this reads in the latest version of motu_metadata so it should work even if you haven't updated all targets!
+```{r}
+  wr_cyc <- tar_read(motu_raw_deltas) |>
+    bind_rows() |>
+    mutate(Analysis = parse_double(Analysis)) |>
+    ## select(-scan_files, -scan_duration) |>
+    ## tidylog::filter(!outlier) |>
+    rename(outlier_cycle_new = outlier) |>
+    tidylog::left_join(tar_read(motu_temperature) |>
+                       bind_rows()) |>
+    tidylog::select(-outlier_manual, -Mineralogy, -starts_with("checked_"), -ends_with("_overwrite")) |>
+    tidylog::left_join(tar_read(motu_metadata) |>
+                       tidylog::select(file_id, Analysis, manual_outlier:checked_comment)) |>
+    tidylog::mutate(outlier = outlier | (!is.na(manual_outlier) & manual_outlier))
+  ## tidylog::filter(broadid != "other" | (broadid == "other" & Analysis %in% mn$Analysis))
+
+  ## tidylog::filter(!outlier) |>
+  ## tidylog::filter(file_id %in% wr_ss$file_id)
+```
+
+**** look at D47 cycles for high SD samples
+```{r}
+  wr_cyc |>
+    tidylog::filter(!outlier,
+                    !outlier_cycle_new) |>
+    ## tidylog::mutate(SD_bin = cut(D47_raw_sd, seq(0.1, 1, .1))) |>
+    ## filter(Analysis %in% c(tar_read(motu_temperature) |>
+    ##                        pull(Analysis) |>
+    ##                        sample(20))) |>
+    ## filter(Analysis %in% c(
+    ## ##                        # d13C
+    ##                        11517, # also D47
+    ## ##                        12283, # also D47
+    ##                        13434, 13441, #not that bad
+    ##                        13458, # also d18O
+    ##                        13485,
+    ## ##                        13495,
+    ##                        13497,
+    ##                        13498,
+    ##                        13506,
+    ##                        14771,
+    ##                        14775
+    ## ##                        18807, # also d18O and D47
+    ## ##                        # d18O
+    ## ##                        12283, # not too bad
+    ## ##                        13498,
+    ## ##                        19534, # not too bad
+    ## ##                        20757,
+    ## ##                        # D47
+    ## ##                        11425 # not too bad
+    ## ##                        # there are a few more that are just small in the youngest part, so up to jan 21
+    ##                      )) |>
+    ## filter(file_datetime > ymd("2020-01-05") & file_datetime < ymd("2020-04-12")) |> # these have particularly high SD's in d13C, d18O
+    ## tidylog::filter(D47_raw_sd > 0.16) |>
+    ggplot(aes(x = cycle,
+               ## x = s44,
+               group = file_id,
+               colour = broadid,
+               alpha = outlier, a = Analysis #alpha = D47_raw_sd
+               )) +
+    ## geom_line(aes(y = s44, linetype = "sample")) +
+    ## geom_line(aes(y = r44, linetype = "reference")) +
+    geom_line(aes(y = #d18O_PDB, #size = s44
+                    D47_raw
+                    ## d13C_PDB
+                ## , alpha = D47_raw_sd > 0.15
+                  )) +
+    ## scale_size_binned(breaks = seq(5e3, 3e4, 5e3)) +
+    ## gghighlight(D47_raw_sd > 0.15)
+    ## gghighlight(file_datetime > ymd("2020-01-05") & file_datetime < ymd("2020-04-12")) # these have particularly high SD's in d13C, d18O
+    ## geom_line(aes(y = D47_raw)) +
+      scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .7)) +
+     facet_grid(cols = vars(n_cyc), rows = vars(outlier, broadid),
+               scale = "free", space = "free") #+
+    ## coord_cartesian(ylim = c(-1.2, 0.7))
+```
+
+**** look at imbalance between ref gas and sample gas (s44/r44)
+```{r}
+  wr_cyc |>
+    # update with newest motu_metadata without re-running all of my code for quicker inspection
+    ## tidylog::select(-one_of(colnames(tar_read(motu_metadata))[-c(1:2)])) |>
+    ## tidylog::left_join(tar_read(motu_metadata)) |>
+    ## tidylog::filter(!manual_outlier) |>
+    ## filter(!outlier, !(is.na(reason_for_outlier) | reason_for_outlier == "")) |>
+    # calculate the difference between subsequent cycles, within a sample
+    group_by(file_id) |>
+    tidylog::mutate(dir = s44/r44 - lag(s44/r44)) |>
+    ## ggplot(aes(x = dir)) + geom_density()
+    # we can filter by this value directly
+    ## tidylog::filter(any(dir > -5e-4)) |>
+    tidylog::filter(!outlier) |>
+    tidylog::filter(!outlier_cycle_new) |>
+    tidylog::filter(n_cyc %in% c(40, 60)) |>
+    ## tidylog::filter(str_detect(checked_comment, "s44/r44")) |>
+    ## tidylog::filter(D47_raw_sd >= 0.16) |>
+    mutate(dirsd = sd(dir, na.rm = TRUE)) |>
+    ## ggplot(aes(x = dirsd, colour = !outlier)) +
+    ## geom_density(n = 4048) +
+    ## geom_vline(xintercept = 0.00025) +
+    ## coord_cartesian(xlim = c(0, .005))
+    # or calculate the standard deviation within the sample and filter by that
+    ## tidylog::filter(dirsd > 0.00025) |>
+    ## tidylog::filter(broadid == "other") |>
+    ggplot(aes(x = cycle,
+               group = file_id,
+               colour = broadid, #alpha = outlier,
+               o = outlier, a = Analysis, ro = reason_for_outlier#alpha = D47_raw_sd
+               )) +
+    geom_line(aes(#y = s44/r44,
+                  group = paste(file_id, Analysis),
+                  y = dir
+                  ## x = broadid, y = dirsd, group = broadid # for use with geom_violin?
+                  ## y = d13C_PDB
+                  ## y = d18O_PDB
+                  )) +
+    ## gghighlight(str_detect(checked_comment, "s44/r44"), keep_scales = TRUE, calculate_per_facet = TRUE) +
+    ## gghighlight(dirsd > 0.00025) +
+    ## gghighlight(D47_raw_sd >= 0.16) +
+    ## facet_wrap(vars(broadid))
+    ## scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .7)) +
+    # once we've ditched a whole lot of them, we can try this out!
+    ## facet_wrap(vars(file_id)) +
+    ## labs(title = "These are the measurements with a larger (>0.00025) SD of the difference between cycles' s44/r44")
+    ## coord_cartesian(ylim = c(0.84, 1.06)) +
+    facet_grid(cols = vars(n_cyc), rows = vars(broadid),
+               scale = "free", space = "free_x")
+```
+
+**** look at difference in s44/r44
+```{r}
+  wr_cyc |>
+    group_by(file_id, Analysis) |>
+    tidylog::mutate(dir = s44/r44 - lag(s44/r44)) |>
+    tidylog::filter(!outlier_cycle_new## , !outlier
+                    ) |>
+    tidylog::filter(!outlier) |>
+    ## tidylog::filter(D47_raw_sd >= 0.16) |>
+    mutate(dirsd = sd(dir, na.rm = TRUE)) |>
+    ggplot(aes(x = cycle,
+               group = file_id,
+               colour = broadid,
+               alpha = outlier
+               ## o = outlier, a = Analysis, ro = reason_for_outlier#alpha = D47_raw_sd
+               )) +
+    geom_line(aes(#y = s44/r44,
+                  group = paste(file_id, Analysis),
+                  y = dir
+                  ## x = broadid, y = dirsd, group = broadid # for use with geom_violin?
+                  ## y = d13C_PDB
+                  ## y = d18O_PDB
+                  )) +
+    scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .7)) +
+    facet_grid(cols = vars(n_cyc), rows = vars(outlier, broadid),
+               scale = "free", space = "free") #+
+    # once we've ditched a whole lot of them, we can try this out!
+    ## facet_wrap(vars(file_id)) +
+    ## labs(title = "These are the measurements with a larger (>0.00025) SD of the difference between cycles' s44/r44")
+    ## coord_cartesian(ylim = c(-.005, .002))
+```
+
+**** how  bad is the trend in D47 vs s44?
+```{r}
+  wr_cyc |>
+    tidylog::filter(!outlier,
+               !outlier_cycle_new) |>
+    ggplot(aes(x = s44, y = D47_raw, colour = broadid, alpha = outlier)) +
+    ## geom_point() +
+    geom_path(aes(group = paste(file_id, Analysis))) +
+    scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .5)) +
+    facet_grid(cols = vars(n_cyc), rows = vars(outlier, broadid),
+               scale = "free", space = "free")  +
+    coord_cartesian(ylim = c(-1.1, 0.5)) +
+    scale_x_log10(breaks = seq(0, 50e3, 1e4), labels = seq(0, 50, 10),
+                  minor_breaks = seq(0, 5e4, 1e3)) +
+    ## annotation_logticks(sides = "b") +
+    geom_smooth(aes(group = broadid), method = "lm", formula = y ~ log10(x))
+```
+
+# Offset Correction
+*** motu
+```{r}
+  ## wr_ss |>
+  pl_off <- tar_read(motu_temperature) |>
+    ## tidylog::filter(broadid != "other" | (broadid == "other" & file_id %in% wr_ss$file_id)) |>
+    measurement_filter() |>
+    ggplot(aes(x = file_datetime, y = D47_offset, colour = broadid, alpha = outlier, label = reason_for_outlier, file_id = file_id,
+               Analysis = Analysis,
+               preparation = preparation,
+               reason_for_outlier = reason_for_outlier)) +
+    geom_point() +
+    # is there a difference in offset between ETH-1 and ETH-2?
+    geom_smooth(aes(fill = outlier, linetype = outlier, group = paste(broadid, outlier)),
+                formula = y ~ x, method = "loess", span = .2, alpha = .2, size = 2, se = F,
+                ## , method.args = list(interval = "prediction")  # unfortunately predict.loess doesn't have this option!
+                data = tar_read(motu_temperature) |>
+                  measurement_filter() |>
+                  filter(broadid %in% c("ETH-1", "ETH-2", "ETH-3"))
+                ) +
+    geom_smooth(aes(fill = outlier, linetype = outlier, group = outlier), se = F, formula = y ~ x, method = "loess", span = .2) +
+    # This is a clunky way of looking for outliers, it's not based on the 95% prediction interval but on fitting the model to ±0.2‰ in the D47_offset column…
+    ## geom_smooth(aes(linetype = outlier, group = outlier), formula = y - .1 ~ x, method = "loess", span = .2, se = F, colour = "red") +
+    ## geom_smooth(aes(fill = outlier, linetype = outlier, group = outlier), formula = y + .1 ~ x, method = "loess", span = .2, se = F, colour = "red") +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = .7)) +
+    # this housekeeping makes the outlier loess line invisible
+    scale_fill_manual(values=c("TRUE" = NA, "FALSE" = "gray")) +
+    scale_linetype_manual(values=c("TRUE" = 0, "FALSE" = 1)) +
+    geom_hline(yintercept = ## wr_ss
+               tar_read(motu_temperature) |> distinct(off_D47_min, off_D47_max) |> unlist()) +
+    coord_cartesian(ylim = c(0.45, 1))
+  pl_off
+```
+
+# ETF
+## effect
+```{r}
+  pl_etf <- tar_read(motu_temperature) |>
+    ggplot(aes(x = file_datetime, y = - etf_intercept_grp / etf_slope_grp + 1 / etf_slope_grp , colour = broadid, alpha = outlier, ro = reason_for_outlier, file_id = file_id, Analysis = Analysis, preparation = preparation)) +
+    geom_point() +
+    ## gghighlight(WR) +
+    ## coord_cartesian(ylim = c(.68, .75)) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1))
+  pl_etf
+```
+
+## line
+*** plot all the ETF slopes/intercepts
+```{r}
+  tar_read(motu_temperature) |>
+    ## filter(file_id %in% wr_ss$file_id) |> # there are some bad runs, but they're not mine so not my problem for now ;-)
+    ggplot(aes(x = expected_D47, y = D47_offset_corrected,
+               colour = broadid, alpha = outlier,
+               fi = file_id, fd = file_datetime, ro = reason_for_outlier, p = preparation)) +
+    geom_violin(aes(fill = broadid, group = broadid),
+                draw_quantiles = c(.25, .5, .75),
+                alpha = .2, width = .1,
+                data = tar_read(motu_temperature) |> filter(!outlier)) +
+    geom_point() +
+    ggnewscale::new_scale_colour() +
+    ## geom_smooth(aes(group = preparation, colour = preparation),
+    ##             ## formula = y ~ x - 1, # would this be better if forced through the origin?
+    ##             # this would assume that the offset correction completely gets rid of drift
+    ##             # RESULT: it's worse, possibly because it gives more weight to ETH-1 and ETH-2?
+    ##             method = "lm",
+    ##             se = F, fullrange = TRUE,
+    ##             data = tar_read(motu_temperature) |>
+    ##               filter(!outlier, broadid %in% c(paste0("ETH-", 1:3)))) +
+    ## geom_abline(aes(slope = etf_slope, intercept = etf_intercept, colour = preparation), alpha = .1) +
+    geom_abline(aes(slope = etf_slope_grp_off, intercept = etf_intercept_grp_off, colour = preparation), alpha = .1) +
+    ## geom_abline(slope = 1, intercept = 0) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    coord_equal(ylim = c(0, .8), xlim = c(0, .9))
+```
+
+*** plot all the ETF slopes/intercepts without offset correction
+```{r}
+  tar_read(motu_temperature) |>
+    ## filter(file_id %in% wr_ss$file_id) |>
+    ggplot(aes(x = expected_D47, y = D47_raw_mean, colour = broadid, alpha = outlier,
+               fi = file_id, fd = file_datetime, ro = reason_for_outlier, p = preparation)) +
+    geom_violin(aes(fill = broadid, group = broadid), alpha = .2, width = .05,
+                data = tar_read(motu_temperature) |> filter(!outlier)) +
+    geom_point() +
+    ## geom_smooth(aes(group = preparation), method = "lm", se = F, data = tar_read(motu_temperature) |> filter(!outlier, broadid %in% c(paste0("ETH-", 1:3)))) +
+    ggnewscale::new_scale_colour() +
+    geom_abline(aes(slope = etf_slope_grp, intercept = etf_intercept_grp, colour = preparation), alpha = .1) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    coord_equal(ylim = c(-.8, .2), xlim = c(.1, .7)) + theme(legend.pos = "right")
+```
+
+# Final Values
+
+## d13C
+*** motu
+```{r}
+  motu_4sd <- 
+    tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    group_by(broadid) |>
+    tidylog::filter(!outlier) |>
+    summarise(d13C = mean(d13C_PDB_mean, na.rm = TRUE),
+              d13C_sd = sd(d13C_PDB_mean, na.rm = TRUE),
+              d13C_4sd = 4 * d13C_sd,
+              criteria_min = d13C - d13C_4sd,
+              criteria_max = d13C + d13C_4sd)
+
+  library(lubridate)
+  ## wr_ss |>
+  tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    ggplot(aes(file_id = file_id, Analysis = Analysis,
+               x=file_datetime,
+               y=d13C_PDB_mean,
+               col=broadid,
+               label = reason_for_outlier,
+               alpha = outlier)) +
+    ## geom_pointrange() +
+    geom_point() +
+    geom_line() +
+    geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = d13C, colour = broadid), data = motu_4sd) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    coord_cartesian(ylim = c(-19, 5)) +
+    facet_grid(cols = vars(broadid)) + theme(legend.pos = "top")
+```
+## d18O
+*** motu
+```{r}
+  motu_4sd <- tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    group_by(broadid) |>
+    tidylog::filter(!outlier) |>
+    summarise(d18O = mean(d18O_PDB_mean, na.rm = TRUE),
+              d18O_sd = sd(d18O_PDB_mean, na.rm = TRUE),
+              d18O_4sd = 4 * d18O_sd,
+              criteria_min = d18O - d18O_4sd,
+              criteria_max = d18O + d18O_4sd)
+
+  tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    ggplot(aes(file_id = file_id, Analysis = Analysis,
+               x=file_datetime,
+               y=d18O_PDB_mean,
+               col=broadid,
+               label = reason_for_outlier,
+               alpha = outlier)) +
+    ## geom_pointrange() +
+    geom_point() +
+    geom_line() +
+    geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = d18O, colour = broadid), data = motu_4sd) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    coord_cartesian(ylim = c(-19, 5)) +
+    facet_grid(cols = vars(broadid)) + theme(legend.pos = "top")
+```
+
+## D47
+*** motu
+**** file_datetime vs values
+```{r}
+  motu_4sd <- tar_read(motu_temperature) |> 
+    measurement_filter() |>
+    group_by(broadid) |>
+    tidylog::filter(!outlier) |>
+    summarise(D47 = mean(D47_final, na.rm = TRUE),
+              D47_sd = sd(D47_final, na.rm = TRUE),
+              D47_4sd = 4 * D47_sd,
+              criteria_min = D47 - D47_4sd,
+              criteria_max = D47 + D47_4sd)
+
+  pl_fin <- tar_read(motu_temperature) |>
+    measurement_filter() |>
+    arrange(file_id, Analysis, file_datetime) |>
+    ggplot(aes(file_id = file_id, Analysis = Analysis,
+               x=file_datetime,
+               # final values with offset correction
+               y=D47_final,
+               ## ymin= 1 / etf_slope * (D47_raw_lwr + D47_offset_average) - etf_intercept / etf_slope,
+               ## ymax= 1 / etf_slope * (D47_raw_upr + D47_offset_average) - etf_intercept / etf_slope,
+               # final values without offset correction
+               ## y=D47_final_no_offset,
+               ## ymin= 1 / etf_slope_raw * (D47_raw_lwr) - etf_intercept_raw / etf_slope_raw,
+               ## ymax= 1 / etf_slope_raw * (D47_raw_upr) - etf_intercept_raw / etf_slope_raw,
+               col=broadid,
+               label = reason_for_outlier,
+               alpha = outlier)) +
+     ## geom_vline(aes(xintercept = datetime, n = Name, p = `Samples (Name, material, #)`, label = `Comments (issues, observations, maintenance):`),
+     ##            data = tar_read(motu_log), alpha = .2, colour = "gray3") +
+     ## geom_vline(aes(xintercept = Date, n = Name, p = `Problem (issues, observations):`, a = Actions),
+     ##            data = tar_read(motu_maintenance), alpha = .4) +
+    ## geom_pointrange() +
+
+    # vertical lines for each scan start
+    geom_vline(aes(xintercept = scan_datetime, sg = scan_group, bgg = bg_group),
+               colour = "cyan", alpha = .3,
+               data = tar_read(motu_temperature) |>
+                   measurement_filter() |>
+                 distinct(scan_datetime, .keep_all = TRUE)
+               ) +
+
+    # segments for each preparation (is nicest for interactive graph)
+    geom_segment(aes(x = mn, xend = mx, y = 0.8, yend = 0.8, prep = preparation),
+                 alpha = .4, size = 2,
+                 inherit.aes = FALSE,
+                 data = tar_read(motu_temperature) |>
+                   measurement_filter() |>
+                   group_by(preparation) |>
+                   summarize(mn = min(file_datetime), mx = max(file_datetime))
+                 ) +
+
+    geom_point() +
+    geom_line(aes(group = broadid)) +
+    ## geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
+    ## geom_hline(aes(yintercept = D47, colour = broadid), data = motu_4sd) +
+    ## geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    labs(y = "Final Δ47, with offset correction") +
+    ## labs(y = "Final Δ47, no offset correction") +
+    coord_cartesian(ylim = c(0, .8)) #+
+    ## facet_grid(rows = vars(broadid))
+    ## facet_grid(cols = vars(broadid)) + theme(legend.pos = "top")
+   pl_fin
+```
+
+**** 4SD off plot
+```{r}
+  motu_4sd <- 
+    tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    group_by(broadid) |>
+    tidylog::filter(!outlier) |>
+    summarise(D47 = mean(D47_final, na.rm = TRUE),
+              D47_sd = sd(D47_final, na.rm = TRUE),
+              D47_4sd = 4 * D47_sd,
+              criteria_min = D47 - D47_4sd,
+              criteria_max = D47 + D47_4sd)
+
+  tar_read(motu_temperature) |>
+    filter(etf_grp %in% tar_read(motu_temperature)$etf_grp[[1]]) |> # filter the standards of interest for Robin van der Ploeg
+    ggplot(aes(file_id = file_id, Analysis = Analysis,
+               x=file_datetime,
+               y=D47_final,
+               col=broadid,
+               label = reason_for_outlier,
+               alpha = outlier)) +
+    ## geom_pointrange() +
+    geom_point() +
+    geom_line() +
+    geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
+    geom_hline(aes(yintercept = D47, colour = broadid), data = motu_4sd) +
+    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    facet_grid(cols = vars(broadid)) + theme(legend.pos = "top") +
+    coord_cartesian(ylim = c(0, 1))
+```
+
+**** timeofday
+```{r}
+  dat <- tar_read(motu_temperature) |>
+    filter(!outlier) |>
+    ## filter(broadid == "ETH-3") |>
+    ## filter(broadid %in% c("ETH-1", "ETH-2")) |>
+    filter(broadid %in% c("ETH-1", "ETH-2", "ETH-3", "ETH-4")) #|>
+    ## filter(file_datetime > lubridate::ymd("2020-01-01"))
+  Y <- c(.45, .8) # ETH-3
+  Y <- c(.1, .3)  # ETH-1 and ETH-2
+  Y <- c(.15, .7)  # IAEA-C2
+  Y <- c(.05, .7)  # pacman caf
+
+  pl_raw <- dat |>
+    ggplot(aes(x=timeofday,
+               y = D47_raw_mean,
+               ## y = D47_final_no_offset,
+               ## y = D47_final,
+               colour = broadid)) +
+    geom_point() +
+    geom_smooth() +
+    scale_y_continuous(breaks = seq(-1, 1, .1), minor_breaks = seq(-1, 1, .01)) +
+    coord_cartesian(ylim = Y - .77)
+
+  pl_nooff <- dat |>
+    ggplot(aes(x=timeofday,
+               ## y = D47_raw_mean,
+               y = D47_final_no_offset,
+               ## y = D47_final,
+               colour = broadid)) +
+    geom_point() +
+    geom_smooth() +
+    scale_y_continuous(breaks = seq(-1, 1, .1), minor_breaks = seq(-1, 1, .01)) +
+    coord_cartesian(ylim = Y)
+
+  pl_fin <- dat |>
+    ggplot(aes(x=timeofday,
+               ## y = D47_raw_mean,
+               ## y = D47_final_no_offset,
+               y = D47_final,
+               colour = broadid)) +
+    geom_point() +
+    geom_smooth() +
+    scale_y_continuous(breaks = seq(-1, 1, .1), minor_breaks = seq(-1, 1, .01)) +
+    coord_cartesian(ylim = Y)
+
+
+  pl_raw + pl_nooff + pl_fin + plot_layout(guides = "collect")
+```
+
+## D47 STD summary
+
+*** motu
+```{r}
+  samp_size <- tar_read(motu_temperature) |>
+    filter(!outlier, broadid != "other") |>
+    measurement_filter() |>
+    group_by(broadid) |>
+    summarize(N = n(),
+              ymean = mean(D47_final, na.rm = TRUE),
+              ysd = sd(D47_final, na.rm = TRUE),
+              ymax = max(ymean + mean(D47_raw_cl, na.rm = TRUE) / max(etf_slope_grp), na.rm = TRUE) + .1)
+
+  tar_read(motu_temperature) |>
+    measurement_filter() |>
+    filter(!outlier, broadid != "other") |>
+    ggplot(aes(y=D47_final,
+               col=broadid,
+               fill=broadid)) +
+    geom_density(alpha = .4, ## n = 10000,
+                 show.legend=FALSE) +
+    ## geom_boxplot(aes(x = 0), position = "identity", alpha = .7, show.legend = F) +
+    geom_text(aes(label = paste0(broadid,
+                                 "\nN = ", N,
+                                 "\nMean = ", round(ymean, 3),
+                                 "\nSD = ", round(ysd, 3)),
+                  y = ymean,
+                  x = Inf),
+              size = 3,
+              hjust = 1,
+              show.legend=F,
+              position = "identity", data = samp_size) +
+    coord_cartesian(ylim = c(0, .8))
+```
+
+- with bg fac of 0.9 they overlap quite nicely, but ETH-1 is very slightly higher overall
+- with bg fac of 1, ETH-1 is too low now
+- with bg fac of 0.92 it's
+
