@@ -1,0 +1,181 @@
+---
+title: "Running clumped-processing on our VPN"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+This document walks you through running the clumped-processing pipeline on our Virtual Machine! Feel free to update the file with your clarifications or improvements as you go through it!
+
+# Steps to run the workflow and get your data
+
+## first-time setup
+
+0. get access to the Virtual Machine 
+  - add your solis-ID to the excel overview file on Teams in the channel "R dataprocessing"
+  - Martin emails Geo-ICT geoict@uu.nl (or contacts Maurits Uffing) with the request to add the users to `GL_UU_GEO_AW_RDP_ISOTOPE_SERVER`
+1. connect to the Virtual Machine
+  - Windows key
+  - search for "Remote Desktop Connections"
+  - connect to http://isotope.soliscom.uu.nl/
+  - on a Mac, use Microsoft Remote Desktop app
+  - on GNU/Linux, I use remmina remote
+2. open the File Explorer and navigate to `C:/clumped-processing/`
+3. open up this file, called `running_clumped-processing.Rmd`, in RStudio
+
+You could also set up github if you want to update the code and share your updates.
+
+I've tried to set up OneDrive so that the results are synchronized to our clumped archive channel. We'll see if this works for you as well. If this is outdated, bug Martin about it.
+
+Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit Utrecht\Archive`
+
+## running the pipeline
+
+5. as long as I haven't fixed issue [#6 on github](https://github.com/UtrechtUniversity/clumped-processing/issues/6):
+  a. run the targets up to and including all the metadata_update steps, first for the scans
+  You can click the little green play icon in the top-right of the chunk or Ctrl+Shift+Enter when your cursor is anywhere inside the chunk.
+```{r}
+  targets::tar_make(names = c(
+    motu_scn_meta_update, 
+    pacman_scn_meta_update
+  ))
+```
+  b. manually copy over the new rows in the metadata update excel files from the `out` folder:
+    - motu_scn_metadata_update.xlsx
+    - pacman_scn_metadata_update.xlsx
+  c. to the corresponding file in Teams/OneDrive which is located in `C:\clumpedarchive\OneDrive - Universiteit Utrecht\Archive`
+    - motu_scn_metadata_parameters.xlsx
+    - pacman_scn_metadata_parameters.xlsx
+  - Careful! Excel 2016 automatic date parsing messes things up. Open everything **ONLY** in the browser in Office365!
+  - HINT: If some date-time columns appear to have `####` in stead of a date: widen the column before copying!
+  - HINT: if one of the rows in the metadata excel file is weird you can remove the row from the metadata file, run the script again and the correct version should now be in the _update excel file! Copy it back in and you're good to go!
+  In each metadata excel file:
+  d. copy the parameters (yellow columns) down so that new rows have values
+  e. mark metadata fixes and outliers in the blue columns all the way to the right
+  f. run the metadata update targets again to make sure that they came through correctly, they should result in empty files in the `out` folder (hint: one of our excel files is empty (has only column names) if it's roughly 6 kB in size!)
+    
+  g. and then for the metadata for the measurements:
+```{r}
+  targets::tar_make(names = c(
+    # the new rows for the metadata files
+    motu_meta_update,
+    pacman_meta_update,
+    # you can almost always leave the caf targets commented out,
+    # they are pacman measurements using the Kiel III device.
+    #pacman_caf_meta_update 
+  ))
+```
+   From:
+    - `motu_metadata_update.xlsx`
+    - `pacman_metadata_update.xlsx`
+    - `pacman_caf_metadata_update.xlsx` -> not needed, hasn't changed in a few years
+   To: the metadata/parameters excel files on OneDrive
+    - `motu_metadata_parameters.xlsx`
+    - `pacman_did_metadata_parameters.xlsx`
+    - `pacman_caf_metadata_parameters.xlsx` -> not needed
+
+6. run the remainder of the targets
+   if we only specify the export targets, it will run all the needed intermediate steps.
+```{r}
+  targets::tar_make(names = c(
+    # to excel, to csv, to rds
+    motu_export, motu_export_csv, motu_out, 
+    pacman_export, pacman_export_csv, pacman_out,
+    #pacman_caf_export, pacman_caf_export_csv, pacman_caf_out
+  ),
+  # use this to skip dependencies
+  shortcut = TRUE
+  )
+```
+  - This creates excel exports of everything, stored on OneDrive!
+    - motu_export -> `motu_all_data_RAW.xlsx`
+    - pacman_export -> `pacman_all_data_RAW.xlsx`
+    - pacman_caf_export -> not really needed
+  - csv exports of everything get stored on OneDrive
+    - motu_export_csv
+    - pacman_export_csv
+    - pacman_caf_export_csv -> not really needed
+  - `rds`, native R format export copies (note that this is the file format that targets uses, which you can also load with: `targets::tar_read(motu_temperature)` in this directory)
+    - motu_out
+    - pacman_out
+    - pacman_caf_out
+    - to read these into R, you can do `readr::read_rds("link/to/file.rds")`.
+    
+7. once we have fixed github issue [#6](https://github.com/UtrechtUniversity/clumped-processing/issues/6), all the manual excel-updating steps could be simplified to just run the below code to update all the targets at once!
+```{r}
+  targets::tar_make()
+```
+
+# Explanations and background information
+
+
+## Installing/Updating R, RStudio, and Windows
+
+Geo-ICT is responsible for this. Martin should email them (not too often!) if a significant update is needed.
+
+## R packages
+
+Martin is the designated driver for this!
+
+On Windows, users on the same computer get their own folders in `C:\Users`.
+Normally, we would all need to install all R packages in our own folder, which would be tedious and a waste of storage space.
+
+In this project's folder, there's a file called `.Renviron`, which sets it up to install R packages to: `C:\R\win-library\4.2\xxx`. Test if this has worked by typing in the terminal (`>`): 
+```{r}
+Sys.getenv("R_LIBS_USER")
+```
+
+## OneDrive
+
+We connect to Martin's OneDrive account to synchronize the Teams channel `Archive` to `C:\clumpedarchive\OneDrive - Universiteit Utrecht\Archive` so that we can read in the metadata files here.
+
+You **must** use Office 365 in the web browser to update these files! Otherwise we get all sorts of date conversion issues with the local copy of Excel 2016
+- for MotU
+  - `motu_scn_metadata_parameters.xlsx` -- scan metadata
+  - `motu_metadata_parameters.xlsx` -- measurement metadata
+- for Pacman
+  - `pacman_scn_metadata_parameters.xlsx`
+  - `pacman_did_metadata_parameters.xlsx`
+  - `pacman_caf_metadata_parameters.xlsx`
+
+## Project structure
+The `clumped-processing` project is hosted on github: https://github.com/UtrechtUniversity/clumped-processing
+On the Virtual Machine, it is located on `C:\clumped-processing`, shared for all users.
+
+- `_targets.R` -- the main script that calls all the functions
+- notebooks are in `.Rmd` files, rendered as `.html`
+  - `running_clumped-processing.Rmd` -- this file, a manual that describes all the steps to run the workflow!
+  - `inspecting_clumped-processing.Rmd` -- most of my quick 'n dirty plots to inspect the output, currently limited to inspecting MotU. We can make a separate one for Pacman later once we've decided if we like it.
+- functions and scripts are in the `R` subdirectory of the project
+  - `functions.R` -- this has the functions that do all the work!
+  - `install_packages.R` -- not needed, just to keep track of all the packages we need in case the VM breaks.
+  - `libraries.R` -- for interactive use, quickly load all the packages
+  - `run.R` -- notes on how to run the pipeline --> superseded by this file
+- output is in `out` directory or copied directly to OneDrive.
+
+## The `targets` package
+
+WARNING: only read the below section if you want to tinker! It's a rough first draft and probably not easy to follow yet.
+
+Using the R-package [`targets`](https://books.ropensci.org/targets/), we can run only those parts of the code that need to be updated. The basic structure is we first load the necessary libraries, then we define functions that do most of the work, and then a workflow of targets with function calls that `targets` analyses for inter-dependencies.
+
+I use [dynamic branching](https://books.ropensci.org/targets/dynamic.html) to make each subdirectory on the raw data drive a separate target.
+This means that if the files or the metadata parameters associated with those files change, only those targets need to be updated.
+This results in a list of dataframes, with names such as `pacman_file_info_d58f7933`.
+
+All the functions that do all the work can be found in `R/functions.R`.
+The `_targets.R` file calls these functions with the correct parameters for each machine (Pacman and MotU).
+
+Running `targets::tar_make()` launches a new, independent R session that loads the packages and updates all targets for which the functions or the dependencies (other targets that need to run before the next one) have changed. The rest of the targets is skipped, and left as-is.
+
+In `_targets.R` we define `our_update_interval` as a number of days after which to look for new files again. This prevents the pipeline from looking at the raw data (which is pretty slow, even if it skips them) if it has been run recently already.
+
+# Getting help
+
+Make sure to read the error message! It's normal to get quite a few warnings, but errors break the pipeline!
+
+Don't forget that if there's a function that you don't understand, you can read its help page from within R by typing `?<function name>` into the console.
+
+If one of the targets breaks (gives error messages), you can use `tar_workspace(<target_name>)` to check it out. This will make the data and functions that it ran into issues with available to play around.
+
+Go through the steps for this target in `_targets.R` one-by-one and see if you can figure it out. If you can't, file an issue [on github](https://github.com/UtrechtUniversity/clumped-processing)
