@@ -28,7 +28,7 @@ tar_option_set(
                "isoreader",
                "clumpedr",
                "slider"),
-  workspace_on_error = TRUE
+  # workspace_on_error = TRUE # this records the workspace if it breaks. It can be slow!
 )
 
 # options(crayon.enabled = FALSE)
@@ -45,7 +45,7 @@ our_update_interval <- as.difftime(50, units = "days")
 list(
   tar_target(
     accepted_standard_values_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/accepted_standard_values.csv",
+    "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/accepted_standard_values.csv",
     format = "file"
   ),
   
@@ -223,7 +223,7 @@ list(
   ## processing.
   tar_target(
     motu_meta_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_metadata_parameters.xlsx",
+    "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/motu_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -240,7 +240,7 @@ list(
   
   tar_target(
     motu_scn_meta_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_scn_metadata_parameters.xlsx",
+    "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/motu_scn_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -637,19 +637,19 @@ list(
   ## export
   tar_target(
     motu_export,
-    tar_excel(motu_temperature, "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.xlsx"),
+    tar_excel(motu_temperature, "C:/clumpedarchive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.xlsx"),
     format = "file"
   ),
   
   tar_target(
     motu_out,
-    tar_write(motu_temperature,  "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_cycle_level_summaries.rds"),
+    tar_write(motu_temperature,  "C:/clumpedarchive/OneDrive - Universiteit Utrecht/Archive/motu_cycle_level_summaries.rds"),
     format = "file"
   ),
   
   tar_target(
     motu_export_csv,
-    tar_csv(motu_temperature, "C:/Archive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.csv"),
+    tar_csv(motu_temperature, "C:/clumpedarchive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.csv"),
     format = "file"
   ),
   
@@ -812,7 +812,7 @@ list(
   ## TODO: figure out how to get this from onedrive automatically
   tar_target(
     pacman_did_meta_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_did_metadata_parameters.xlsx",
+    "C:/clumpedarchive/OneDrive - Universiteit Utrecht/Archive/pacman_did_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -827,7 +827,7 @@ list(
   
   tar_target(
     pacman_caf_meta_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_caf_metadata_parameters.xlsx",
+    "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_caf_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -844,7 +844,7 @@ list(
   
   tar_target(
     pacman_scn_meta_file,
-    "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_scn_metadata_parameters.xlsx",
+    "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_scn_metadata_parameters.xlsx",
     format = "file"
   ),
   
@@ -1477,14 +1477,14 @@ list(
   tar_target(
     pacman_export,
     tar_excel(pacman_temperature,
-              "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.xlsx"),
+              "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.xlsx"),
     format = "file"
   ),
   
   tar_target(
     pacman_out,
     tar_write(pacman_temperature,
-              "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_cycle_level_summaries.rds"),
+              "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_cycle_level_summaries.rds"),
     format = "file"
   ),
   
@@ -1492,7 +1492,7 @@ list(
     pacman_caf_out,
     tar_write(
       pacman_caf_temperature,
-      "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_caf_cycle_level_summaries.rds"
+      "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_caf_cycle_level_summaries.rds"
     ),
     format = "file"
   ),
@@ -1500,7 +1500,7 @@ list(
   tar_target(
     pacman_export_csv,
     tar_csv(pacman_temperature,
-            "C:/Archive/OneDrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.csv"),
+            "C:/clumpedarchive/Onedrive - Universiteit Utrecht/Archive/pacman_all_data_RAW.csv"),
     format = "file"
   )
 )
