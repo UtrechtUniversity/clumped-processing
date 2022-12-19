@@ -46,16 +46,15 @@ Currently it focuses on the rang of Robin van der Ploeg's samples. We can adapt 
 ```{r}
   scan_filter <- function(data) {
     data |>
-      filter(scan_datetime > lubridate::ymd("2018-03-14") & 
-             scan_datetime < lubridate::ymd("2020-01-01")) 
+      filter(scan_datetime > lubridate::ymd("2022-01-01")) 
   } 
 
   measurement_filter <- function(data) {
     data |>
-      filter(file_datetime > lubridate::ymd("2018-03-14") & 
-               file_datetime < lubridate::ymd("2020-01-01"))
+      filter(file_datetime > lubridate::ymd("2022-01-01"))
   }
 ```
+
 # Background Scans
 
 ## Raw scans
@@ -69,8 +68,10 @@ This is a plot of the raw scans. It takes quite a while to make, so it might be 
       group_by(file_id) |>
       ## filter(scan_datetime > lubridate::ymd("2021-10-10")) |> # update to latest processing
       scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
-      pivot_longer(cols = v44.mV:v49.mV, names_to = "mass", values_to="intensity") |>
-      ggplot(aes(x=x, y=intensity, colour = mass## , linetype = scan_group
+      pivot_longer(cols = v44.mV:v49.mV, 
+                   names_to = "mass", 
+                   values_to="intensity") |>
+      ggplot(aes(x = x, y = intensity, colour = mass## , linetype = scan_group
                  )) +
       geom_line(aes(group = paste(file_id, mass, voltage))) +
       geom_vline(aes(xintercept = value, range = range, label = scan_group),
@@ -80,16 +81,23 @@ This is a plot of the raw scans. It takes quite a while to make, so it might be 
                    ## filter(scan_datetime > lubridate::ymd("2021-05-01")) |>
                    scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
                    ## tidylog::filter(scan_datetime <= lubridate::ymd("2018-12-10")) |>
-                   distinct(min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end, .keep_all = TRUE) |>
-                   pivot_longer(cols = c(min_start_44, min_end_44, min_start_45_49, min_end_45_49, max_start, max_end),
+                   distinct(min_start_44, min_end_44, 
+                            min_start_45_49, min_end_45_49, 
+                            max_start, max_end, .keep_all = TRUE) |>
+                   pivot_longer(cols = c(min_start_44, min_end_44,
+                                         min_start_45_49, min_end_45_49,
+                                         max_start, max_end),
                                 names_to = "range", values_to = "value")) +
       # below works but is very slow
       ## facet_zoom(xlim = c(9.385, 9.465), ylim = c(-1000, 100), horizontal = FALSE) + # for the minimum
-      coord_cartesian(xlim = c(9.385, 9.465), ylim = c(-500, 100)) + # for the minimum
-      scale_x_continuous(breaks = seq(9, 10, .01), minor_breaks = seq(9, 10, .001)) #+
+      coord_cartesian(xlim = c(9.385, 9.465), 
+                      ylim = c(-500, 100)) + # for the minimum
+      scale_x_continuous(breaks = seq(9, 10, .01), 
+                         minor_breaks = seq(9, 10, .001)) #+
       ## facet_grid(rows = vars(mass))
 
-    pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5), ylim = c(-500, 4e4))) + # for the maximum
+    pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5), 
+                                       ylim = c(-500, 4e4))) + # for the maximum
     plot_layout(guides = "collect")
 ```
 
@@ -148,9 +156,11 @@ It looks like for mass 45 it might make a difference, but then again the y-axis 
     ##             method = "lm", se = F, alpha = .2) +
     geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
                 formula = y ~ poly(x, 3, raw = TRUE),
-                method = "lm", se = F, alpha = .2, data = wr_minmaxs |> filter(!outlier_scan_manual)) +
-    geom_point(aes(alpha = outlier_scan_manual, colour = scan_datetime), size = 3) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+                method = "lm", se = F, alpha = .2, 
+                data = wr_minmaxs |> filter(!outlier_scan_manual)) +
+    geom_point(aes(alpha = outlier_scan_manual, colour = scan_datetime), 
+               size = 3) +
+    sam +
     ## geom_abline(aes(slope = slope, intercept = intercept, colour = scan_datetime),
     ##             data = wr_lines,
     ##             alpha = .1) +
@@ -195,14 +205,18 @@ I think by now I've adjusted all the ranges to match all the WR scans that had w
     pivot_longer(cols = v44.mV:v49.mV, 
                  names_to = "mass", 
                  values_to="intensity") |>
-    ggplot(aes(x=x, y=intensity, 
+    ggplot(aes(x = x, y = intensity, 
                colour = mass, 
+               # below aesthetics don't do anything, but assigning them
+               # is useful: if you make this plot interactive, all the
+               # aesthetics will show up on hovering a point!
                sg = scan_group, 
                fi = file_id, 
                fd = file_datetime, 
                fs = fix_software, 
                o = outlier_scan_manual)) +
     geom_line(aes(group = paste(file_id, mass, voltage))) +
+    # sam = scale_alpha_manual(...) defined in libraries.R
     sam +
     geom_vline(aes(xintercept = value),
                data = tar_read(motu_scn_mod) |>
@@ -347,9 +361,10 @@ These become slow pretty quickly, adjust your `measurement_filter`!
 ```{r}
   tar_read(motu_raw_deltas) |>
     bind_rows() |>
-    measurement_filter() |>
+    # NOTE: raw delta's doesn't have file_datetime, so need to filter in another way. This is the first measurement in 2022
+    filter(Analysis >= 24653L) |> 
     add_count(file_id, Analysis) |>
-    mutate(Analysis = parse_double(Analysis)) |>
+    #mutate(Analysis = parse_double(Analysis)) |>
     select(-scan_files) |>
     rename(cycle_outlier_temp = outlier) |>
     tidylog::left_join(tar_read(motu_temperature) |>
@@ -359,7 +374,8 @@ These become slow pretty quickly, adjust your `measurement_filter`!
     ## filter(!cycle_outlier_temp, !outlier) |>
     ## pivot_longer(cols = c(r44:s54, s45_bg:r49_bg), names_to = "mass", values_to = "intensity") |>
     ## glimpse()
-    ggplot(aes(x = cycle, group = paste(file_id, Analysis), a = Analysis, alpha = out,
+    ggplot(aes(x = cycle, group = paste(file_id, Analysis), 
+               a = Analysis, alpha = out,
                colour = broadid)) +
     ## gghighlight(cycle_has_drop_s44) +
     geom_line(aes(y = s44), alpha = .4) +
@@ -371,22 +387,24 @@ These become slow pretty quickly, adjust your `measurement_filter`!
 ```
 
 ## initial intensity outliers
+Somehow, s44_init and r44_init are always NA now...
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |> 
-    ggplot(aes(x = file_datetime, y = s44_init, 
+    ggplot(aes(x = file_datetime, y = init_int, 
                colour = broadid, alpha = outlier,
                a = Analysis, fi = file_id, ro = reason_for_outlier)) +
     sam +
     geom_point() +
     geom_rug(aes(y = NULL),
-               data = tar_read(motu_temperature) |> filter(is.na(s44_init)),
-               colour = "red", show.legend = FALSE) +
+             data = tar_read(motu_temperature) |> 
+               measurement_filter() |> 
+               filter(is.na(s44_init)),
+             colour = "red", show.legend = FALSE) +
     geom_hline(yintercept = tar_read(motu_temperature) |>
+                 measurement_filter() |> 
                  distinct(init_low, init_high) |> unlist())
 ```
-
-
 ### difference in initial intensity outliers
 ```{r}
   tar_read(motu_temperature) |>
@@ -460,7 +478,8 @@ Plot all the stuff from IsoDat.
 **** COMMENT background always NA
 ```{r}
   tar_read(motu_temperature) |>
-    ggplot(aes(x = file_datetime, y = background, colour = broadid, alpha = outlier,
+    ggplot(aes(x = file_datetime, y = background, 
+               colour = broadid, alpha = outlier,
                a = Analysis, fi = file_id, ro = reason_for_outlier)) +
     geom_point() #+
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
@@ -553,20 +572,19 @@ make sure that we have set a nice range similar to the PC here
 **** total_CO2 vs initial intensity
 ```{r}
   tar_read(motu_temperature) |>
-    measurement_filter() |>
+    #measurement_filter() |>
     ggplot(aes(x = init_int, y = total_CO2, colour = broadid, alpha = outlier,
                a = Analysis, fi = file_id, ro = reason_for_outlier
                )) +
     geom_point() +
-    ## gghighlight(file_datetime > as.POSIXct(ymd("2021-05-10"))) +
-    sam
-    ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
+    sam #+
+    #scale_y_log10()
 ```
 
 **** total_CO2 vs weight
 ```{r}
   tar_read(motu_temperature) |>
-    measurement_filter() |>
+    #measurement_filter() |>
     filter(broadid != "other") |>
     ggplot(aes(x = `Weight [mg]`, y = total_CO2, colour = broadid## factor(Line)
              , alpha = outlier,
@@ -602,7 +620,7 @@ make sure that we have set a nice range similar to the PC here
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** COMMENT extra_drops always 1 or 0
+**** extra_drops
 ```{r}
   tar_read(motu_temperature) |>
     ggplot(aes(x = file_datetime, y = extra_drops, colour = broadid, alpha = outlier,
@@ -638,8 +656,9 @@ make sure that we have set a nice range similar to the PC here
 # Raw Data
 ## raw D47
 ```{r}
-  pl_D47raw <- tar_read(motu_temperature) |> bind_rows() |>
+  pl_D47raw <- tar_read(motu_temperature) |> 
     measurement_filter() |>
+  
     arrange(file_id, Analysis, file_datetime) |>
 
     ggplot(aes(x=file_datetime,
@@ -704,17 +723,7 @@ make sure that we have set a nice range similar to the PC here
 
      # customize the plot legends etc.
      scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
-     labs(y = "Raw Δ47") +
-     coord_cartesian(## xlim = c(
-                     ##  ## as.POSIXct(ymd("2020-12-17")),
-                     ##  as.POSIXct(ymd("2018-02-23")),
-                     ##  ## as.POSIXct(today())
-                     ##  ## as.POSIXct(today() - months(3)),
-                     ##  ## as.POSIXct(today() - weeks(2)),
-                     ##  ## as.POSIXct(today() - days(10)),
-                     ##  NA
-                     ## ),
-       ylim = c(-.7, .2))
+     labs(y = "Raw Δ47")
   pl_D47raw
 ```
 
@@ -723,8 +732,7 @@ I've added logbook and maintenance notes (commented out now), this makes this fu
 ## raw D48
 ```{r}
   pl_D48raw <- tar_read(motu_temperature) |> 
-  bind_rows() |>
-  measurement_filter() |>
+    measurement_filter() |>
     filter(!outlier, broadid == "IAEA-C2", # file_datetime > as.POSIXct("2021-04-01")
            ) |>
     arrange(file_id, Analysis, file_datetime) |>
@@ -764,18 +772,7 @@ I've added logbook and maintenance notes (commented out now), this makes this fu
      ## gghighlight(.data$file_id %in% wr_ss$file_id) +
      scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
      labs(y = "Raw Δ48") +
-     coord_cartesian(## xlim = c(
-                     ##  ## as.POSIXct(ymd("2020-12-17")),
-                     ##  as.POSIXct(ymd("2018-02-23")),
-                     ##  ## as.POSIXct(today())
-                     ##  ## as.POSIXct(today() - months(3)),
-                     ##  ## as.POSIXct(today() - weeks(2)),
-                     ##  ## as.POSIXct(today() - days(10)),
-                     ##  NA
-                     ## ),
-       ylim = c(-5, 5)
-       ) +
-      geom_hline(yintercept = c(-1, 1))
+     geom_hline(yintercept = c(-1, 1))
   pl_D48raw
 ```
 
@@ -798,10 +795,13 @@ This does mean we have to redo some simple house-keeping, i.e. getting ETH-1 and
     measurement_filter() |>
     filter(broadid %in% c("ETH-1", "ETH-2", "Merck")) |>
     # cut up into monthly/yearly slices and tweak factor accordingly?
-    ggplot(aes(x = file_datetime, y = D47_raw_mean, colour = broadid, alpha = outlier, #label = reason_for_outlier,
-               fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, p = preparation)) +
+    ggplot(aes(x = file_datetime, y = D47_raw_mean, 
+               colour = broadid, alpha = outlier, #label = reason_for_outlier,
+               fi = file_id, A = Analysis, 
+               s4 = s44_init, r4 = r44_init, 
+               p49 = param_49_mean, p = preparation)) +
     geom_point() +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    sam +
     ## # a simple loess fit
     ## geom_smooth(aes(linetype = outlier, group = broadid), method = "loess", se = F, span = .1,
     ##             data = tar_read(motu_temperature) |>
@@ -818,6 +818,7 @@ This does mean we have to redo some simple house-keeping, i.e. getting ETH-1 and
     stat_summary(aes(x = summ, group = broadid), geom = "line",
                  alpha = .4, #size = 2,
                  data = tar_read(motu_temperature) |>
+                   measurement_filter() |> 
                    filter(# Analysis %in% wr_ss$Analysis,
                      broadid %in% c("ETH-1", "ETH-2"), !outlier) |>
                    group_by(preparation) |>
@@ -828,13 +829,16 @@ This does mean we have to redo some simple house-keeping, i.e. getting ETH-1 and
                  alpha = .4, size = 2,
                  fun.data = ~ data.frame(y = mean(.x, na.rm = TRUE), yend = mean(.x, na.rm = TRUE)),
                  data = tar_read(motu_temperature) |>
+                   measurement_filter() |> 
                    group_by(preparation) |>
                    mutate(summ = mean(file_datetime), mn = min(file_datetime), mx = max(file_datetime)) |>
                    filter(# Analysis %in% wr_ss$Analysis,
                      broadid %in% c("ETH-1", "ETH-2"), !outlier)
                  ) +
-    geom_point(aes(y = bg_fac / 10 - .7), colour = "black", data = tar_read(motu_temperature)) +
-    coord_cartesian(ylim = c(-.74, -.07))
+  geom_point(aes(y = bg_fac / 10 - .7), colour = "black", 
+             data = tar_read(motu_temperature) |> 
+                 measurement_filter()) #+
+    #coord_cartesian(ylim = c(-.74, -.07))
   pl_bgc
 ```
 
@@ -868,11 +872,16 @@ then I tweaked some more parts where it seemed obvious that for several runs one
     measurement_filter() |>
     filter(## Analysis %in% wr_ss$Analysis,
            broadid %in% c("ETH-1", "ETH-2")) |>
-    ggplot(aes(x = file_datetime, y = D47_final, colour = broadid, alpha = outlier, label = reason_for_outlier,
-               fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, f = bg_fac)) +
+    ggplot(aes(x = file_datetime, y = D47_final, 
+               colour = broadid, alpha = outlier, 
+               label = reason_for_outlier,
+               fi = file_id, A = Analysis, 
+               s4 = s44_init, r4 = r44_init, 
+               p49 = param_49_mean, f = bg_fac)) +
   geom_point() +
-  geom_point(aes(y = bg_fac / 10), colour = "black", data = tar_read(motu_temperature)) +
-  scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+  geom_point(aes(y = bg_fac / 10), colour = "black", 
+             data = tar_read(motu_temperature)) +
+  sam +
   ## geom_smooth(aes(group = broadid), method = "loess", se = F, span = .3,
   ##               data = # wr_raw_ss |> filter(!is.na(outlier_manual) & !outlier_manual)
   ##                 tar_read(motu_temperature) |>
@@ -901,31 +910,25 @@ then I tweaked some more parts where it seemed obvious that for several runs one
 
 **** what does the final d47 vs D47 plot look like?
 ```{r}
-  tar_read(motu_temperature) |>
-    ## filter(broadid != "other") |>
-  ## filter(Analysis %in% wr_ss$Analysis) |>
-    ## # do we see differences between species?
-    ## mutate(specsub = case_when(str_detect(file_id, "Pyr") ~ "Pyrgo spp.",
-    ##                            str_detect(file_id, "Wuell") ~ "Cib. wuell.",
-    ##                            str_detect(file_id, "Ou") ~ "Ori. umb.",
-    ##                            str_detect(file_id, "Cw") ~ "Cib. wuell.",
-    ##                            str_detect(file_id, "Cm") ~ "Cib. mun.",
-    ##                            TRUE ~ "other")) |>
-    measurement_filter() |>
-  ggplot(aes(x = d47_mean, y = D47_raw_mean, colour = broadid, alpha = outlier, label = reason_for_outlier,
-             fi = file_id, A = Analysis, s4 = s44_init, r4 = r44_init, p49 = param_49_mean, f = bg_fac)) +
-    geom_point(## aes(shape = specsub)
-               ) +
-    ## geom_point(aes(y = bg_fac / 10), colour = "black", data = tar_read(motu_temperature)) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
-    ggnewscale::new_scale_colour() +
-    stat_smooth(aes(group = preparation, colour = bg_fac), geom = "line", method = "lm", se = F, alpha = .3,
-                data = # wr_raw_ss |> filter(!is.na(outlier_manual) & !outlier_manual)
-                  tar_read(motu_temperature) |>
-                  filter(## Analysis %in% wr_ss$Analysis,
-                    broadid %in% c("ETH-1", "ETH-2"), !outlier)
-                ) +
-    coord_cartesian(xlim = c(-40, 22), ylim = c(-.7, .15))
+tar_read(motu_temperature) |>
+  measurement_filter() |>
+  ggplot(aes(x = d47_mean, y = D47_raw_mean, 
+             colour = broadid, alpha = outlier, 
+             label = reason_for_outlier,
+             fi = file_id, A = Analysis, 
+             s4 = s44_init, r4 = r44_init, p49 = param_49_mean, f = bg_fac)) +
+  geom_point() +
+  sam +
+  ggnewscale::new_scale_colour() +
+  stat_smooth(aes(group = preparation, colour = bg_fac), 
+              geom = "line", method = "lm", se = F, alpha = .3,
+              data = # wr_raw_ss |> filter(!is.na(outlier_manual) & !outlier_manual)
+                tar_read(motu_temperature) |>
+                measurement_filter() |> 
+                filter(## Analysis %in% wr_ss$Analysis,
+                  broadid %in% c("ETH-1", "ETH-2"), !outlier)
+  ) #+
+   # coord_cartesian(xlim = c(-40, 22), ylim = c(-.7, .15))
 ```
 
 the bottom line that's sloped downward (lower ETH-1 than ETH-2) is preparation 447 \to it's bg_fac should be changed from 0.95 to 0.91
@@ -1036,16 +1039,23 @@ note that this reads in the latest version of motu_metadata so it should work ev
 ```{r}
   wr_cyc <- tar_read(motu_raw_deltas) |>
     bind_rows() |>
-    mutate(Analysis = parse_double(Analysis)) |>
+    #mutate(Analysis = parse_double(Analysis)) |>
     ## select(-scan_files, -scan_duration) |>
     ## tidylog::filter(!outlier) |>
     rename(outlier_cycle_new = outlier) |>
     tidylog::left_join(tar_read(motu_temperature) |>
                        bind_rows()) |>
-    tidylog::select(-outlier_manual, -Mineralogy, -starts_with("checked_"), -ends_with("_overwrite")) |>
+    tidylog::select(-outlier_manual, 
+                    -Mineralogy, 
+                    -starts_with("checked_"), 
+                    -ends_with("_overwrite")) |>
     tidylog::left_join(tar_read(motu_metadata) |>
-                       tidylog::select(file_id, Analysis, manual_outlier:checked_comment)) |>
-    tidylog::mutate(outlier = outlier | (!is.na(manual_outlier) & manual_outlier))
+                         tidylog::select(file_id, 
+                                         Analysis, 
+                                         manual_outlier:checked_comment)) |>
+    tidylog::mutate(outlier = outlier | 
+                      (!is.na(manual_outlier) & 
+                         manual_outlier))
   ## tidylog::filter(broadid != "other" | (broadid == "other" & Analysis %in% mn$Analysis))
 
   ## tidylog::filter(!outlier) |>
@@ -1103,7 +1113,7 @@ note that this reads in the latest version of motu_metadata so it should work ev
     ## gghighlight(D47_raw_sd > 0.15)
     ## gghighlight(file_datetime > ymd("2020-01-05") & file_datetime < ymd("2020-04-12")) # these have particularly high SD's in d13C, d18O
     ## geom_line(aes(y = D47_raw)) +
-      scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .7)) +
+     sam +
      facet_grid(cols = vars(n_cyc), rows = vars(outlier, broadid),
                scale = "free", space = "free") #+
     ## coord_cartesian(ylim = c(-1.2, 0.7))
@@ -1184,7 +1194,7 @@ note that this reads in the latest version of motu_metadata so it should work ev
                   ## y = d13C_PDB
                   ## y = d18O_PDB
                   )) +
-    scale_alpha_manual(values=c("TRUE" = 0.3, "FALSE" = .7)) +
+    sam +
     facet_grid(cols = vars(n_cyc), rows = vars(outlier, broadid),
                scale = "free", space = "free") #+
     # once we've ditched a whole lot of them, we can try this out!
@@ -1197,7 +1207,7 @@ note that this reads in the latest version of motu_metadata so it should work ev
 ```{r}
   wr_cyc |>
     tidylog::filter(!outlier,
-               !outlier_cycle_new) |>
+                    !outlier_cycle_new) |>
     ggplot(aes(x = s44, y = D47_raw, colour = broadid, alpha = outlier)) +
     ## geom_point() +
     geom_path(aes(group = paste(file_id, Analysis))) +
@@ -1218,30 +1228,37 @@ note that this reads in the latest version of motu_metadata so it should work ev
   pl_off <- tar_read(motu_temperature) |>
     ## tidylog::filter(broadid != "other" | (broadid == "other" & file_id %in% wr_ss$file_id)) |>
     measurement_filter() |>
-    ggplot(aes(x = file_datetime, y = D47_offset, colour = broadid, alpha = outlier, label = reason_for_outlier, file_id = file_id,
+    ggplot(aes(x = file_datetime, y = D47_offset, 
+               colour = broadid, alpha = outlier, 
+               label = reason_for_outlier, file_id = file_id,
                Analysis = Analysis,
                preparation = preparation,
                reason_for_outlier = reason_for_outlier)) +
     geom_point() +
     # is there a difference in offset between ETH-1 and ETH-2?
-    geom_smooth(aes(fill = outlier, linetype = outlier, group = paste(broadid, outlier)),
-                formula = y ~ x, method = "loess", span = .2, alpha = .2, size = 2, se = F,
+    geom_smooth(aes(fill = outlier, linetype = outlier, 
+                    group = paste(broadid, outlier)),
+                formula = y ~ x, method = "loess", 
+                span = .2, alpha = .2, size = 2, se = F,
                 ## , method.args = list(interval = "prediction")  # unfortunately predict.loess doesn't have this option!
                 data = tar_read(motu_temperature) |>
                   measurement_filter() |>
                   filter(broadid %in% c("ETH-1", "ETH-2", "ETH-3"))
                 ) +
-    geom_smooth(aes(fill = outlier, linetype = outlier, group = outlier), se = F, formula = y ~ x, method = "loess", span = .2) +
+    #geom_smooth(aes(fill = outlier, linetype = outlier, group = outlier), 
+    #            se = F, formula = y ~ x, method = "loess", span = .2) +
     # This is a clunky way of looking for outliers, it's not based on the 95% prediction interval but on fitting the model to ±0.2‰ in the D47_offset column…
     ## geom_smooth(aes(linetype = outlier, group = outlier), formula = y - .1 ~ x, method = "loess", span = .2, se = F, colour = "red") +
     ## geom_smooth(aes(fill = outlier, linetype = outlier, group = outlier), formula = y + .1 ~ x, method = "loess", span = .2, se = F, colour = "red") +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = .7)) +
+    sam +
     # this housekeeping makes the outlier loess line invisible
     scale_fill_manual(values=c("TRUE" = NA, "FALSE" = "gray")) +
     scale_linetype_manual(values=c("TRUE" = 0, "FALSE" = 1)) +
     geom_hline(yintercept = ## wr_ss
-               tar_read(motu_temperature) |> distinct(off_D47_min, off_D47_max) |> unlist()) +
-    coord_cartesian(ylim = c(0.45, 1))
+               tar_read(motu_temperature) |> 
+                 measurement_filter() |> 
+                 distinct(off_D47_min, off_D47_max) |> unlist()) #+
+    #coord_cartesian(ylim = c(0.45, 1))
   pl_off
 ```
 
@@ -1249,28 +1266,36 @@ note that this reads in the latest version of motu_metadata so it should work ev
 ## effect
 ```{r}
   pl_etf <- tar_read(motu_temperature) |>
-    ggplot(aes(x = file_datetime, y = - etf_intercept_grp / etf_slope_grp + 1 / etf_slope_grp , colour = broadid, alpha = outlier, ro = reason_for_outlier, file_id = file_id, Analysis = Analysis, preparation = preparation)) +
+    ggplot(aes(x = file_datetime, 
+               y = - etf_intercept_grp / etf_slope_grp + 1 / etf_slope_grp,
+               colour = broadid, alpha = outlier, 
+               ro = reason_for_outlier, file_id = file_id, 
+               Analysis = Analysis, preparation = preparation)) +
     geom_point() +
     ## gghighlight(WR) +
     ## coord_cartesian(ylim = c(.68, .75)) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1))
+    sam
   pl_etf
 ```
 
 ## line
 *** plot all the ETF slopes/intercepts
 ```{r}
-  tar_read(motu_temperature) |>
+tar_read(motu_temperature) |>
+  measurement_filter() |>   
     ## filter(file_id %in% wr_ss$file_id) |> # there are some bad runs, but they're not mine so not my problem for now ;-)
-    ggplot(aes(x = expected_D47, y = D47_offset_corrected,
-               colour = broadid, alpha = outlier,
-               fi = file_id, fd = file_datetime, ro = reason_for_outlier, p = preparation)) +
-    geom_violin(aes(fill = broadid, group = broadid),
-                draw_quantiles = c(.25, .5, .75),
-                alpha = .2, width = .1,
-                data = tar_read(motu_temperature) |> filter(!outlier)) +
-    geom_point() +
-    ggnewscale::new_scale_colour() +
+  ggplot(aes(x = expected_D47, y = D47_offset_corrected,
+             colour = broadid, alpha = outlier,
+             fi = file_id, fd = file_datetime, 
+             ro = reason_for_outlier, p = preparation)) +
+  geom_violin(aes(fill = broadid, group = broadid),
+              draw_quantiles = c(.25, .5, .75),
+              alpha = .2, width = .1,
+              data = tar_read(motu_temperature) |> 
+                measurement_filter() |> 
+                filter(!outlier)) +
+  geom_point() +
+  #ggnewscale::new_scale_colour() +
     ## geom_smooth(aes(group = preparation, colour = preparation),
     ##             ## formula = y ~ x - 1, # would this be better if forced through the origin?
     ##             # this would assume that the offset correction completely gets rid of drift
@@ -1280,25 +1305,33 @@ note that this reads in the latest version of motu_metadata so it should work ev
     ##             data = tar_read(motu_temperature) |>
     ##               filter(!outlier, broadid %in% c(paste0("ETH-", 1:3)))) +
     ## geom_abline(aes(slope = etf_slope, intercept = etf_intercept, colour = preparation), alpha = .1) +
-    geom_abline(aes(slope = etf_slope_grp_off, intercept = etf_intercept_grp_off, colour = preparation), alpha = .1) +
+    geom_abline(aes(slope = etf_slope_grp_off, 
+                    intercept = etf_intercept_grp_off, group = etf_grp),
+                alpha = .1) +
     ## geom_abline(slope = 1, intercept = 0) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
-    coord_equal(ylim = c(0, .8), xlim = c(0, .9))
+    sam #+
+    #coord_equal(ylim = c(0, .8), xlim = c(0, .9))
 ```
 
 *** plot all the ETF slopes/intercepts without offset correction
 ```{r}
   tar_read(motu_temperature) |>
+    filter(!outlier) |>
     ## filter(file_id %in% wr_ss$file_id) |>
-    ggplot(aes(x = expected_D47, y = D47_raw_mean, colour = broadid, alpha = outlier,
-               fi = file_id, fd = file_datetime, ro = reason_for_outlier, p = preparation)) +
-    geom_violin(aes(fill = broadid, group = broadid), alpha = .2, width = .05,
-                data = tar_read(motu_temperature) |> filter(!outlier)) +
+    ggplot(aes(x = expected_D47, y = D47_raw_mean, 
+               colour = broadid, alpha = outlier,
+               fi = file_id, fd = file_datetime, 
+               ro = reason_for_outlier, p = preparation)) +
+    geom_violin(aes(fill = broadid, group = broadid), 
+                alpha = .2, width = .05,
+                data = tar_read(motu_temperature) |> 
+                  filter(!outlier)) +
     geom_point() +
     ## geom_smooth(aes(group = preparation), method = "lm", se = F, data = tar_read(motu_temperature) |> filter(!outlier, broadid %in% c(paste0("ETH-", 1:3)))) +
     ggnewscale::new_scale_colour() +
-    geom_abline(aes(slope = etf_slope_grp, intercept = etf_intercept_grp, colour = preparation), alpha = .1) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    geom_abline(aes(slope = etf_slope_grp, 
+                    intercept = etf_intercept_grp, colour = preparation), alpha = .1) +
+    sam +
     coord_equal(ylim = c(-.8, .2), xlim = c(.1, .7)) + theme(legend.pos = "right")
 ```
 
@@ -1362,10 +1395,13 @@ note that this reads in the latest version of motu_metadata so it should work ev
     ## geom_pointrange() +
     geom_point() +
     geom_line() +
-    geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
-    geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
-    geom_hline(aes(yintercept = d18O, colour = broadid), data = motu_4sd) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    geom_hline(aes(yintercept = criteria_min, colour = broadid), 
+               data = motu_4sd) +
+    geom_hline(aes(yintercept = criteria_max, colour = broadid), 
+               data = motu_4sd) +
+    geom_hline(aes(yintercept = d18O, colour = broadid), 
+               data = motu_4sd) +
+    sam +
     coord_cartesian(ylim = c(-19, 5)) +
     facet_grid(cols = vars(broadid)) + theme(legend.pos = "top")
 ```
@@ -1429,7 +1465,7 @@ note that this reads in the latest version of motu_metadata so it should work ev
     ## geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
     ## geom_hline(aes(yintercept = D47, colour = broadid), data = motu_4sd) +
     ## geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    sam +
     labs(y = "Final Δ47, with offset correction") +
     ## labs(y = "Final Δ47, no offset correction") +
     coord_cartesian(ylim = c(0, .8)) #+
@@ -1465,7 +1501,7 @@ note that this reads in the latest version of motu_metadata so it should work ev
     geom_hline(aes(yintercept = criteria_min, colour = broadid), data = motu_4sd) +
     geom_hline(aes(yintercept = criteria_max, colour = broadid), data = motu_4sd) +
     geom_hline(aes(yintercept = D47, colour = broadid), data = motu_4sd) +
-    scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1)) +
+    sam +
     facet_grid(cols = vars(broadid)) + theme(legend.pos = "top") +
     coord_cartesian(ylim = c(0, 1))
 ```
