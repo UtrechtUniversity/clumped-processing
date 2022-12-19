@@ -37,6 +37,14 @@ The required R packages for this workflow are:
 - targets :: for the cached reproducible pipeline workflow
 - tidylog :: for neat log messages about dplyr verbs
 
+See also the file [[file:R/install_packages.R]].
+
+* Notebooks
+
+A user guide on how to run the workflow, can be previewed [[https://htmlpreview.github.io/?https://raw.githubusercontent.com/UtrechtUniversity/clumped-processing/main/running_clumped-processing.nb.html][here]].
+
+A set of inspection plots (that do not get updated automatically!) can be viewed[[https://htmlpreview.github.io/?https://raw.githubusercontent.com/UtrechtUniversity/clumped-processing/main/inspecting_clumped-processing.nb.html][here]].
+
 * Copying
 
 The code was created by Ilja J. Kocken https://orcid.org/0000-0003-2196-8718
