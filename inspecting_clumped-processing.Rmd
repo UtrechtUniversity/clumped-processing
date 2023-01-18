@@ -4,11 +4,14 @@ output: html_notebook
 ---
 
 # Backlog and Notes
+
 2022-12-15: **NOTE** this is a messy file, use the Outline to navigate quickly!
+
+2022-12-15: **TODO** make copies for pacman did/caf -> might need further tweaking because some metadata is different.
 
 2022-12-16: **TODO** once this file is cleaned up and to your liking, include it in the targets pipeline so it auto-updates? https://books.ropensci.org/targets/literate-programming.html
 
-**TODO** make copies for pacman did/caf -> might need further tweaking because some metadata is different.
+2022-12-20: **NOTE** I've now cleaned this up a bit, it looks at everything since 2021.
 
 Once you have [run the code](running_clumped-processing.Rmd), we can inspect the output!
 
@@ -16,42 +19,49 @@ Once you have [run the code](running_clumped-processing.Rmd), we can inspect the
 This loads the libraries + plotting helpers (sam = scale_alpha_manual for outliers).
 
 ```{r}
-  source("R/libraries.R")
+# below is similar to:  
+#source("R/libraries.R")
+
+  # Loads globals like tar_option_set() packages and functions
+  library(targets)
+  tar_load_globals()
 ```
 # Interactive Plots
 
-If there is ever a plot you'd like to zoom in on, run this chunk!
-It'll be very slow for large plots with many points.
+If there is ever a plot you'd like to zoom in on, make an interactive version of it with this `ggp()` function.
 
-```{r, eval=FALSE}
- # convert to WebGL for speed
+```{r}
+  ggp <- function(pl = ggplot2::last_plot(), h = NULL) {
+     # convert to WebGL for speed -> doesn't work in RStudio browser
  #plotly::toWebGL(
-   plotly::ggplotly(
+    plotly::ggplotly(
    # select the last ggplot object
    # you can also replace that with an object that holds the plot
-   p = ggplot2::last_plot() + 
-     # disable the axis titles (needed in case you have formulae for the axes)
-     theme(axis.title.x = element_blank(), 
-           axis.title.y = element_blank()), 
-   # make new tickmarks show up when you zoom in/out
-   dynamicTicks = TRUE, height = NULL)
-  #)
-
+      p = pl + 
+        # disable the axis titles (needed in case you have formulae for the axes)
+        theme(axis.title.x = element_blank(), 
+              axis.title.y = element_blank()), 
+      # make new tickmarks show up when you zoom in/out
+      dynamicTicks = TRUE, height = h)
+    #)
+  }
 ```
+
 # Custom Filters
 These are used to zoom in on only the measurements you want to see!
 
-Currently it focuses on the rang of Robin van der Ploeg's samples. We can adapt it to look at the most recent runs later.
+Currently it focuses on all measurements since 2021. The last manual outlier was marked in November 2021.
+
 
 ```{r}
   scan_filter <- function(data) {
     data |>
-      filter(scan_datetime > lubridate::ymd("2022-01-01")) 
+      filter(scan_datetime > lubridate::ymd("2021-01-01")) 
   } 
 
   measurement_filter <- function(data) {
     data |>
-      filter(file_datetime > lubridate::ymd("2022-01-01"))
+      filter(file_datetime > lubridate::ymd("2021-01-01"))
   }
 ```
 
@@ -62,68 +72,63 @@ Currently it focuses on the rang of Robin van der Ploeg's samples. We can adapt 
 This is a plot of the raw scans. It takes quite a while to make, so it might be useful to filter first.
 
 ```{r}
-    ## wr_scn_raw |>
-    pl_scn <- tar_read(motu_scn_fix) |>
-      bind_rows() |>
-      group_by(file_id) |>
-      ## filter(scan_datetime > lubridate::ymd("2021-10-10")) |> # update to latest processing
-      scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
-      pivot_longer(cols = v44.mV:v49.mV, 
-                   names_to = "mass", 
-                   values_to="intensity") |>
-      ggplot(aes(x = x, y = intensity, colour = mass## , linetype = scan_group
-                 )) +
-      geom_line(aes(group = paste(file_id, mass, voltage))) +
-      geom_vline(aes(xintercept = value, range = range, label = scan_group),
-                 data = #wr_scn_raw |>
-                   tar_read(motu_scn_fix) |>
-                   bind_rows() |>
-                   ## filter(scan_datetime > lubridate::ymd("2021-05-01")) |>
-                   scan_filter() |> # the whole range for Robin van der Ploeg's MECO runs
-                   ## tidylog::filter(scan_datetime <= lubridate::ymd("2018-12-10")) |>
-                   distinct(min_start_44, min_end_44, 
-                            min_start_45_49, min_end_45_49, 
-                            max_start, max_end, .keep_all = TRUE) |>
-                   pivot_longer(cols = c(min_start_44, min_end_44,
-                                         min_start_45_49, min_end_45_49,
-                                         max_start, max_end),
-                                names_to = "range", values_to = "value")) +
-      # below works but is very slow
-      ## facet_zoom(xlim = c(9.385, 9.465), ylim = c(-1000, 100), horizontal = FALSE) + # for the minimum
-      coord_cartesian(xlim = c(9.385, 9.465), 
-                      ylim = c(-500, 100)) + # for the minimum
-      scale_x_continuous(breaks = seq(9, 10, .01), 
-                         minor_breaks = seq(9, 10, .001)) #+
-      ## facet_grid(rows = vars(mass))
+pl_scn <- tar_read(motu_scn_fix) |>
+  bind_rows() |>
+  group_by(file_id) |>
+  scan_filter() |>
+  pivot_longer(cols = v44.mV:v49.mV, 
+               names_to = "mass", 
+               values_to="intensity") |>
+  ggplot(aes(x = x, y = intensity, colour = mass## , linetype = scan_group
+  )) +
+  geom_line(aes(group = paste(file_id, mass, voltage))) +
+  geom_vline(aes(xintercept = value, range = range, label = scan_group),
+             data = tar_read(motu_scn_fix) |>
+               bind_rows() |>
+               scan_filter() |>
+               distinct(min_start_44, min_end_44, 
+                        min_start_45_49, min_end_45_49, 
+                        max_start, max_end, .keep_all = TRUE) |>
+               pivot_longer(cols = c(min_start_44, min_end_44,
+                                     min_start_45_49, min_end_45_49,
+                                     max_start, max_end),
+                            names_to = "range", values_to = "value")) +
+  # below works but is very slow
+  ## facet_zoom(xlim = c(9.385, 9.465), ylim = c(-1000, 100), horizontal = FALSE) + # for the minimum
+  coord_cartesian(xlim = c(9.385, 9.465), 
+                  ylim = c(-500, 100)) + # for the minimum
+  scale_x_continuous(breaks = seq(9, 10, .01), 
+                     minor_breaks = seq(9, 10, .001))
 
-    pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5), 
-                                       ylim = c(-500, 4e4))) + # for the maximum
-    plot_layout(guides = "collect")
+# show the minimum and maximum side-by-side
+pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5), 
+                                   ylim = c(-500, 4e4))) + # for the maximum
+  plot_layout(guides = "collect")
 ```
 
 ## Min/Max vs. Time
 ```{r}
-  tar_read(motu_scn_mod) |>
-    bind_rows() |>
-    # filter your range of interest
-    scan_filter() |> 
-     unnest(cols = data) |>
-     ggplot(aes(x = scan_datetime,
-                label = scan_group,
-                colour = factor(voltage),
-                file_id = file_id,
-                alpha = outlier_scan_manual,
-                ## y = min_44
-                ## y = min_45
-                ## y = min_46
-                y = min_47
-                ## y = min_48
-                ## y = min_49
-                ## y = min_54
-                ## y = max_44
-                )) +
-     geom_point() + sam
-     ## scale_alpha_manual(values=c("TRUE" = 0.2, "FALSE" = 1))
+tar_read(motu_scn_mod) |>
+  bind_rows() |>
+  # filter your range of interest
+  scan_filter() |> 
+  unnest(cols = data) |>
+  ggplot(aes(x = scan_datetime,
+             label = scan_group,
+             colour = factor(voltage),
+             file_id = file_id,
+             alpha = outlier_scan_manual,
+             ## y = min_44
+             ## y = min_45
+             ## y = min_46
+             y = min_47
+             ## y = min_48
+             ## y = min_49
+             ## y = min_54
+             ## y = max_44
+  )) +
+  geom_point() + 
+  sam
 ```
 ## BG Models
 
@@ -132,40 +137,41 @@ Here I also quickly fit 2nd order polynomials (parabola's) that go through the o
 It looks like for mass 45 it might make a difference, but then again the y-axis value is only 2 on a scale of 15000 so I'll just leave it be for now.
 
 ```{r}
-  wr_minmaxs <- tar_read(motu_scn_mod) |>
-    bind_rows() |>
-    scan_filter() |>
-    unnest(cols = data) |>
-    # remove metadata for easier pivoting
-    select(-c(min, max, min_start_44, min_end_44, 
-              min_start_45_49, min_end_45_49, 
-              max_start, max_end)) |>
-    pivot_longer(cols = starts_with("min_"), 
-                 names_to = "min_mass", 
-                 values_to = "minimum") |>
-    mutate(mass = str_extract(min_mass, "\\d{2}"))
+wr_minmaxs <- tar_read(motu_scn_mod) |>
+  bind_rows() |>
+  scan_filter() |>
+  unnest(cols = data) |>
+  # remove metadata for easier pivoting
+  select(-c(min, max, min_start_44, min_end_44, 
+            min_start_45_49, min_end_45_49, 
+            max_start, max_end)) |>
+  pivot_longer(cols = starts_with("min_"), 
+               names_to = "min_mass", 
+               values_to = "minimum") |>
+  mutate(mass = str_extract(min_mass, "\\d{2}"))
 
-  wr_minmaxs |>
-    ggplot(aes(x = max_44, y = minimum, #colour = mass,
-               label = scan_group,
-               file_id = file_id)) +
-    ## geom_smooth(aes(group = mass), method = "lm", se = F) +
-    ## geom_smooth(aes(group = mass), formula = y ~ x - 1, method = "lm", se = F, colour = "orange") +
-    ## geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
-    ##             formula = y ~ poly(x, 2, raw = TRUE) - 1,
-    ##             method = "lm", se = F, alpha = .2) +
-    geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
-                formula = y ~ poly(x, 3, raw = TRUE),
-                method = "lm", se = F, alpha = .2, 
-                data = wr_minmaxs |> filter(!outlier_scan_manual)) +
-    geom_point(aes(alpha = outlier_scan_manual, colour = scan_datetime), 
-               size = 3) +
-    sam +
-    ## geom_abline(aes(slope = slope, intercept = intercept, colour = scan_datetime),
-    ##             data = wr_lines,
-    ##             alpha = .1) +
-    ## geom_hline(yintercept = -500, colour = "red") +
-    facet_wrap(vars(mass), scales = "free_y")
+wr_minmaxs |>
+  ggplot(aes(x = max_44, y = minimum, #colour = mass,
+             label = scan_group,
+             file_id = file_id)) +
+  ## geom_smooth(aes(group = mass), method = "lm", se = F) +
+  ## geom_smooth(aes(group = mass), formula = y ~ x - 1, method = "lm", se = F, colour = "orange") +
+  ## geom_smooth(aes(group = paste(scan_group, mass), colour = scan_datetime),
+  ##             formula = y ~ poly(x, 2, raw = TRUE) - 1,
+  ##             method = "lm", se = F, alpha = .2) +
+  geom_smooth(aes(group = paste(scan_group, mass), 
+                  colour = scan_datetime),
+              formula = y ~ poly(x, 3, raw = TRUE),
+              method = "lm", se = F, alpha = .2, 
+              data = wr_minmaxs |> filter(!outlier_scan_manual)) +
+  geom_point(aes(alpha = outlier_scan_manual, colour = scan_datetime), 
+             size = 3) +
+  sam +
+  ## geom_abline(aes(slope = slope, intercept = intercept, colour = scan_datetime),
+  ##             data = wr_lines,
+  ##             alpha = .1) +
+  ## geom_hline(yintercept = -500, colour = "red") +
+  facet_wrap(vars(mass), scales = "free_y")
 ```
 
 ## Weird Scans
@@ -424,7 +430,7 @@ Somehow, s44_init and r44_init are always NA now...
 # Measurement Info
 Plot all the stuff from IsoDat.
 
-**** acid temperature
+## acid temperature
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |>
@@ -435,7 +441,7 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** ref_mbar
+## ref_mbar
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |>
@@ -444,7 +450,7 @@ Plot all the stuff from IsoDat.
     geom_point() +
     sam
 ```
-**** ref_pos
+## ref_pos
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |>
@@ -455,7 +461,7 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** COMMENT bellow_pos_smp always 100
+## bellow_pos_smp always 100
 ```{r}
   tar_read(motu_temperature) |>
     ggplot(aes(x = file_datetime, y = bellow_pos_smp, colour = broadid, alpha = outlier,
@@ -464,7 +470,7 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** init_int : not more informative than s44_init or r44_init
+## init_int : not more informative than s44_init or r44_init
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |>
@@ -475,7 +481,7 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** COMMENT background always NA
+## background always NA
 ```{r}
   tar_read(motu_temperature) |>
     ggplot(aes(x = file_datetime, y = background, 
@@ -485,7 +491,7 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-**** PC : peak centre
+## PC : peak centre
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |>
@@ -496,19 +502,20 @@ Plot all the stuff from IsoDat.
     ## coord_cartesian(xlim = as.POSIXct(c(ymd("2021-05-10"), today())), ylim = c(65, NA))
 ```
 
-this peak center PC is the same as the ~step~ in the scan data! So we can see where it does the peak centering in the scans for comparison.
+this peak center PC is the same as the `step` in the scan data! So we can see where it does the peak centering in the scans for comparison.
 Seems like it might be a bit too much to the right for the latest measurements?
 
 ```{r}
-  tar_read(motu_scn_fix) |>
-    bind_rows() |>
-    scan_filter() |>
-    pivot_longer(v44.mV:v49.mV, names_to = "mass", values_to = "intensity") |>
-    ggplot(aes(x = x, y = intensity, colour = mass)) +
-    geom_line(aes(group = paste(file_id, voltage, mass))) +
-    geom_vline(xintercept = c(9.392386, 9.39527, 9.424277, 9.429723, 9.463, 9.466)) +
-    scale_x_continuous(breaks = seq(0, 10, 0.01), minor_breaks = seq(0, 10, 0.001)) +
-    coord_cartesian(ylim = c(-500, 200))
+tar_read(motu_scn_fix) |>
+  bind_rows() |>
+  scan_filter() |>
+  pivot_longer(v44.mV:v49.mV, names_to = "mass", values_to = "intensity") |>
+  ggplot(aes(x = x, y = intensity, colour = mass)) +
+  geom_line(aes(group = paste(file_id, voltage, mass))) +
+  #geom_vline(xintercept = c(9.392386, 9.39527, 9.424277, 9.429723, 9.463, 9.466)) +
+  scale_x_continuous(breaks = seq(0, 10, 0.01), 
+                     minor_breaks = seq(0, 10, 0.001)) +
+  coord_cartesian(ylim = c(-500, 200))
     ## geom_vline(xintercept=c(62100, 62130), colour = "red")  # manually entered the range in the last period
 ```
 

@@ -18,8 +18,11 @@
 library(targets)
 library(tarchetypes)
 
-# Note that we're using the development package ~clumpedr~, which I'm writing. Install it with:
+# Note that we're using the development package ~clumpedr~, which I'm writing. 
+# Install it with:
 # remotes::install_github("isoverse/clumpedr")
+# see the file R/install_packages.R for a list of required package installation 
+# commands.
 
 tar_option_set(
   packages = c("tidyverse",
@@ -28,16 +31,22 @@ tar_option_set(
                "isoreader",
                "clumpedr",
                "slider"),
-  # workspace_on_error = TRUE # this records the workspace if it breaks. It can be slow!
+  # Setting this records the workspace if it breaks. It can be slow!
+  # workspace_on_error = TRUE
+  # Errors continue the targets, where broken branches return NULL
+  error = "null"
 )
 
 # options(crayon.enabled = FALSE)
+# set multiple cores
 options(clustermq.scheduler = "multicore")
 
+# load in the functions that do the work
 source("R/functions.R")
 
 # after how many days should we guarantee a re-run?
-our_update_interval <- as.difftime(50, units = "days") 
+our_update_interval <- as.difftime(50, units = "days")
+# this is set very high while we process everything
 
 # general and logbooks ---------------------------------------------------------
 # These general targets contain accepted standard values and excel logbooks.
@@ -108,6 +117,7 @@ list(
   # ~iteration = "list"~ to make dynamic targets per directory, so that
   # preparations only need to be read into R once.
   
+## raw measurement files ----
   # These are the measurement files for the standards and the samples. That's 46
   # measurements per run/preparation/sequence.
   tar_target(
@@ -140,6 +150,7 @@ list(
     pattern = map(motu_dids_paths)
   ),
   
+## raw scan files ----
   # scn files
   # These are the background scans. We create 5 files per run, and they are used
   # to correct all the measurements that follow it until the next scans.
@@ -172,7 +183,7 @@ list(
     pattern = map(motu_scn_paths)
   ),
   
-  ## read in as isoreader files
+  ## read files ----
   # The above only listed the files and cut them up into list chunks per run. Here
   # we read in the data in the files. This is quite slow and usually only needs to
   # happen once, unless we have an update in the ~isoreader~ package.
@@ -194,14 +205,13 @@ list(
     #cue = tar_cue(command = FALSE)
   ),
   
-  ## extract raw data
+  ## extract raw data ----
   ## This gets the raw data, i.e. individual cycles of intensities per mass, from
   ## the above files.
   
   tar_target(
     motu_raw,
     iso_get_raw_data(motu_dids, include_file_info = Analysis),
-    #|>
     # this now iterates over the folders, so it won't have to re-run this
     # expensive function
     pattern = map(motu_dids),
@@ -218,7 +228,7 @@ list(
     format = "qs"
   ),
   
-  ## read in metadata
+  ## read in metadata ----
   ## These files hold the current metadata fixes with desired parameters for data
   ## processing.
   tar_target(
@@ -246,6 +256,7 @@ list(
   
   tar_target(
     motu_scn_meta,
+    # TODO: write read_scan_meta function to replace below♣
     read_xlsx(
       motu_scn_meta_file,
       sheet = "data",
@@ -275,7 +286,7 @@ list(
     )
   ),
   
-  ## process scans
+  ## process scans ----
   
   # TODO: import/export motu_scn_metadata so that I output all parameter columns
   tar_target(
@@ -344,7 +355,7 @@ list(
     format = "file"
   ),
   
-  ## clean up metadata, make file info
+  ## clean up metadata, make file info ----
   
   # extracted because it's slow and never changes after reading it once
   tar_target(
@@ -426,7 +437,7 @@ list(
     format = "file"
   ),
   
-  ## raw deltas
+  ## raw deltas ----
   
   # Most of the computations have already landed in my clumpedr package
   # https://github.com/isoverse/clumpedr/, but we do have some tricks here that
@@ -501,7 +512,7 @@ list(
     format = "qs"
   ),
   
-  
+  ## nested ----
   # nesting and summarising still happens within each folder, because this is
   # slow for the big db
   tar_target(
@@ -514,7 +525,7 @@ list(
     format = "qs"
   ),
   
-  ## sample level summaries
+  ## sample level summaries ----
   tar_target(
     motu_sample_level,
     motu_nested |>
@@ -550,6 +561,7 @@ list(
     format = "fst_tbl"
   ),
   
+  ## temperature ----
   tar_target(
     motu_temperature,
     motu_sample_level |>
@@ -634,7 +646,7 @@ list(
     format = "qs"
   ),
   
-  ## export
+  ## export ----
   tar_target(
     motu_export,
     tar_excel(motu_temperature, "C:/clumpedarchive/OneDrive - Universiteit Utrecht/Archive/motu_all_data_RAW.xlsx"),
@@ -654,12 +666,14 @@ list(
   ),
   
   
-  # pacman pipeline ---------------------------------------------------------
+# pacman pipeline ---------------------------------------------------------
   
   # This is our older mass spectrometer. It is a MAT 253 with a Kiel IV, but it
   # had a Kiel III attached earlier with a different software version. The newer
   # measurement files are the ~.did~ files and the older files are the ~.caf~
   # files.
+
+## did files ----
   tar_target(
     pacman_dids_paths_all,
     list_files("Kiel IV data",
@@ -689,8 +703,7 @@ list(
     pattern = map(pacman_dids_paths)
   ),
   
-  ## caf files
-  
+## caf files ----
   tar_target(
     pacman_caf_paths_all,
     list_files("clumped/Results", ".caf$",
@@ -720,14 +733,22 @@ list(
     pattern = map(pacman_caf_paths)
   ),
   
-  ## scn files
+## scn files ----
   #"Background Scans"
-  #wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253"
+  # these have migrated
+  # located in:
+  # from the beginning until 2018-05
+  # \\ad.geo.uu.nl\GML\Rawdata\Kiel 253\clumped\Scans
+  # then starting 2018-06 until 2022-05
+  # \\ad.geo.uu.nl\GML\Rawdata\Kiel 253\Background Scans
+  # then, starting 2022-05 until at least 2023-01
+  # \\ad.geo.uu.nl\GML\Rawdata\Kiel 253\Backgrounds
+  
   # scn files
   tar_target(
     pacman_scn_paths_all,
-    list_files("Scans", ".scn$",
-               wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253/clumped") |>
+    list_files("", ".scn$",
+               wd = "//ad.geo.uu.nl/GML/Rawdata/Kiel 253") |>
       file_info() |>
       remove_copies() |>
       batch_month(),
@@ -752,6 +773,7 @@ list(
     pattern = map(pacman_scn_paths)
   ),
   
+## read in raw files ----
   ## read in as isoreader files
   tar_target(
     pacman_cafs,
@@ -808,7 +830,7 @@ list(
     format = "qs"
   ),
   
-  ## read in metadata
+## read in metadata ----
   ## TODO: figure out how to get this from onedrive automatically
   tar_target(
     pacman_did_meta_file,
@@ -853,7 +875,7 @@ list(
     read_xlsx(pacman_scn_meta_file, sheet = "data", guess_max = 1e5)
   ),
   
-  ## process scans
+  ## process scans ----
   # TODO: import/export pacman_scn_metadata so that I output all parameter columns
   tar_target(
     pacman_scn_fix,
@@ -909,7 +931,7 @@ list(
     format = "qs"
   ),
   
-  ## clean up metadata, make file info
+  ## clean up metadata, make file info ----
   
   # extracted because it's slow and never changes after reading it once
   tar_target(
@@ -1071,7 +1093,8 @@ list(
     format = "file"
   ),
   
-  ## pacman caf
+  ## process caf ----
+  ### raw deltas ----
   tar_target(
     pacman_caf_raw_deltas,
     pacman_caf_raw |>
@@ -1136,6 +1159,7 @@ list(
     format = "qs"
   ),
   
+  ### nested ----
   # nesting and summarising still happens within each folder, because this is
   # slow for the big db
   tar_target(
@@ -1148,7 +1172,7 @@ list(
     format = "qs"
   ),
   
-  ## sample level summaries
+  ### sample level summaries ----
   tar_target(
     pacman_caf_sample_level,
     pacman_caf_nested |>
@@ -1185,6 +1209,7 @@ list(
     format = "fst_tbl"
   ),
   
+  ### temperature ----
   tar_target(
     pacman_caf_temperature,
     pacman_caf_sample_level |>
@@ -1269,7 +1294,8 @@ list(
     format = "qs"
   ),
   
-  ## pacman
+  ## process did ----
+  ### raw deltas ----
   tar_target(
     pacman_raw_deltas,
     pacman_raw |>
@@ -1335,6 +1361,7 @@ list(
     format = "qs"
   ),
   
+  ### nested ----
   # nesting and summarising still happens within each folder, because this is
   # slow for the big db
   tar_target(
@@ -1347,7 +1374,7 @@ list(
     format = "qs"
   ),
   
-  ## sample level summaries
+  ### sample level summaries ----
   tar_target(
     pacman_sample_level,
     pacman_nested |>
@@ -1389,6 +1416,7 @@ list(
     format = "fst_tbl"
   ),
   
+  ### temperature ----
   tar_target(
     pacman_temperature,
     pacman_sample_level |>
@@ -1473,7 +1501,7 @@ list(
     format = "qs"
   ),
   
-  ## export
+  ## export ----
   tar_target(
     pacman_export,
     tar_excel(pacman_temperature,

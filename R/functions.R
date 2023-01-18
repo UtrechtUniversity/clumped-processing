@@ -474,17 +474,23 @@ export_metadata <- function(data, meta, file) {
      #                   file_id %in% meta$file_id)) |>
   if ("Analysis" %in% colnames(data)) {
     data <- data |>
-      filter(!Analysis %in% meta$Analysis)
+      tidylog::filter(!Analysis %in% meta$Analysis)
+  } else {
+    warning("Column `Analysis` not found in data.", call. = FALSE)
   }
   
   if ("file_datetime" %in% colnames(data)) {
     data <- data |> 
-      filter(!file_datetime %in% meta$file_datetime)
+      tidylog::filter(!file_datetime %in% meta$file_datetime)
+  } else {
+    warning("Column `file_datetime` not found in data.", call. = FALSE)
   }
   
   if ("file_id" %in% colnames(data)) {
     data <- data |>
-      filter(!file_id %in% meta$file_id)
+      tidylog::filter(!file_id %in% meta$file_id)
+  } else {
+    warning("Column `file_id` not found in data.", call. = FALSE)
   }
   
   data |>
@@ -1060,14 +1066,30 @@ add_scan_info <- function(data, .info, cols, quiet = clumpedr:::default(quiet)) 
     message("Info: appending measurement information.")
   }
 
-  left_join(x = data, y = .info %>% select(tidyselect::all_of(cols)), by = "file_id")
+  left_join(x = data, y = .info %>% select(tidyselect::all_of(cols)), 
+            by = "file_id")
 }
 
 # This was the easiest way I could find to create consistent output with the
 # desired order of columns.
 export_scan_metadata <- function(data, meta, file) {
+  
+  if ("file_datetime" %in% colnames(data)) {
+    data <- data |> 
+      tidylog::filter(!file_datetime %in% meta$file_datetime)
+  } else {
+    warning("Column `file_datetime` not found in data.", call. = FALSE)
+  }
+
+  if ("file_id" %in% colnames(data)) {
+    data <- data |>
+      tidylog::filter(!file_id %in% meta$file_id)
+  }  else {
+    warning("Column `file_id` not found in data.", call. = FALSE)
+  }
+  
    data |>
-     tidylog::filter(scan_datetime > max(meta$scan_datetime, na.rm = TRUE)) |>
+     #tidylog::filter(scan_datetime > max(meta$scan_datetime, na.rm = TRUE)) |>
      tidylog::select(any_of(c("file_id",
                               "file_root",
                               "file_datetime",

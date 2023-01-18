@@ -35,10 +35,10 @@ Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit U
   a. run the targets up to and including all the metadata_update steps, first for the scans
   You can click the little green play icon in the top-right of the chunk or Ctrl+Shift+Enter when your cursor is anywhere inside the chunk.
 ```{r}
-  targets::tar_make(names = c(
-    motu_scn_meta_update, 
-    pacman_scn_meta_update
-  ))
+targets::tar_make(names = c(
+  motu_scn_meta_update, 
+  pacman_scn_meta_update
+))
 ```
   b. manually copy over the new rows in the metadata update excel files from the `out` folder:
     - motu_scn_metadata_update.xlsx
@@ -56,14 +56,14 @@ Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit U
     
   g. and then for the metadata for the measurements:
 ```{r}
-  targets::tar_make(names = c(
-    # the new rows for the metadata files
-    motu_meta_update,
-    pacman_meta_update,
-    # you can almost always leave the caf targets commented out,
-    # they are pacman measurements using the Kiel III device.
-    #pacman_caf_meta_update 
-  ))
+targets::tar_make(names = c(
+  # the new rows for the metadata files
+  motu_meta_update,
+  pacman_meta_update,
+  # you can almost always leave the caf targets commented out,
+  # they are pacman measurements using the Kiel III device.
+  #pacman_caf_meta_update 
+))
 ```
    From:
     - `motu_metadata_update.xlsx`
@@ -77,15 +77,15 @@ Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit U
 6. run the remainder of the targets
    if we only specify the export targets, it will run all the needed intermediate steps.
 ```{r}
-  targets::tar_make(names = c(
-    # to excel, to csv, to rds
-    motu_export, motu_export_csv, motu_out, 
-    pacman_export, pacman_export_csv, pacman_out,
-    #pacman_caf_export, pacman_caf_export_csv, pacman_caf_out
-  ),
-  # use this to skip dependencies
-  shortcut = TRUE
-  )
+targets::tar_make(names = c(
+  # to excel, to csv, to rds
+  motu_export, motu_export_csv, motu_out, 
+  pacman_export, pacman_export_csv, pacman_out,
+  #pacman_caf_export, pacman_caf_export_csv, pacman_caf_out
+),
+# use this to skip dependencies, you almost never want this!
+#shortcut = TRUE
+)
 ```
   - This creates excel exports of everything, stored on OneDrive!
     - motu_export -> `motu_all_data_RAW.xlsx`
@@ -103,7 +103,7 @@ Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit U
     
 7. once we have fixed github issue [#6](https://github.com/UtrechtUniversity/clumped-processing/issues/6), all the manual excel-updating steps could be simplified to just run the below code to update all the targets at once!
 ```{r}
-  targets::tar_make()
+targets::tar_make()
 ```
 
 # Explanations and background information
