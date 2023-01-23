@@ -45,7 +45,7 @@ options(clustermq.scheduler = "multicore")
 source("R/functions.R")
 
 # after how many days should we guarantee a re-run?
-our_update_interval <- as.difftime(50, units = "days")
+our_update_interval <- as.difftime(1, units = "days")
 # this is set very high while we process everything
 
 # general and logbooks ---------------------------------------------------------

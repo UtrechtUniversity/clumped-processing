@@ -13,18 +13,19 @@ output: html_notebook
 
 2022-12-20: **NOTE** I've now cleaned this up a bit, it looks at everything since 2021.
 
+2023-01-19: **NOTE** Updated pacman workflow, should include pacman inspection plots here or in a separate file?
+
 Once you have [run the code](running_clumped-processing.Rmd), we can inspect the output!
 
 # Libraries
 This loads the libraries + plotting helpers (sam = scale_alpha_manual for outliers).
 
 ```{r}
-# below is similar to:  
-#source("R/libraries.R")
+source("R/libraries.R")
 
   # Loads globals like tar_option_set() packages and functions
-  library(targets)
-  tar_load_globals()
+#  library(targets)
+#  tar_load_globals()
 ```
 # Interactive Plots
 
@@ -109,6 +110,7 @@ pl_scn + (pl_scn + coord_cartesian(xlim = c(9.44, 9.5),
 ## Min/Max vs. Time
 ```{r}
 tar_read(motu_scn_mod) |>
+#tar_read(pacman_scn_mod) |>
   bind_rows() |>
   # filter your range of interest
   scan_filter() |> 
@@ -118,7 +120,7 @@ tar_read(motu_scn_mod) |>
              colour = factor(voltage),
              file_id = file_id,
              alpha = outlier_scan_manual,
-             ## y = min_44
+             ##y = min_44
              ## y = min_45
              ## y = min_46
              y = min_47
@@ -185,7 +187,7 @@ I think by now I've adjusted all the ranges to match all the WR scans that had w
       ## "14March2018", "16March2018", "19March2018", "21March2018", "22March2018", "23March2018"
       ## "17April2018"
       ## "14September2018"
-      "190130"
+      #"190130"
                    ## "190619"## ,
                    ## "190621",
                    ## "190624",
@@ -203,6 +205,8 @@ I think by now I've adjusted all the ranges to match all the WR scans that had w
                    ## "210107", # fixed after adjusting scan range
                    ## "210114",
                    ## "210115" # a little high but they all are
+    "220207",
+    "211112"
                    )
 
   tar_read(motu_scn_fix) |>
@@ -393,13 +397,13 @@ These become slow pretty quickly, adjust your `measurement_filter`!
 ```
 
 ## initial intensity outliers
-Somehow, s44_init and r44_init are always NA now...
 ```{r}
   tar_read(motu_temperature) |>
     measurement_filter() |> 
-    ggplot(aes(x = file_datetime, y = init_int, 
+    ggplot(aes(x = file_datetime, y = s44_init,#init_int, 
                colour = broadid, alpha = outlier,
-               a = Analysis, fi = file_id, ro = reason_for_outlier)) +
+               a = Analysis, fi = file_id, 
+               ro = reason_for_outlier)) +
     sam +
     geom_point() +
     geom_rug(aes(y = NULL),
@@ -1413,7 +1417,7 @@ tar_read(motu_temperature) |>
     facet_grid(cols = vars(broadid)) + theme(legend.pos = "top")
 ```
 
-## D47
+○## D47
 *** motu
 **** file_datetime vs values
 ```{r}

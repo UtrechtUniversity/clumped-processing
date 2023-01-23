@@ -324,13 +324,18 @@ add_inits <- function(data, dids) {
     iso_get_raw_data(select = c(cycle, type, v44.mV),
                      include_file_info = Analysis)
 
-  ifelse(nrow(inits) > 0L,
-         inits <- inits |>
-           get_inits() |>
-           tidylog::mutate(Analysis = ifelse("Analysis" %in% colnames(.data), 
-                                             readr::parse_double(Analysis),
-                                             NA_real_)),
-         inits <- tibble(file_id = character(), Analysis = integer(), s44_init = double(), r44_init = double()))
+  # if it's a normal case with file info
+  if (!is.null(nrow(inits))) {
+    if (nrow(inits) > 0L) {
+      inits <- inits |>
+        get_inits()
+    }
+  } else {
+    inits <- tibble(file_id = character(), 
+                    Analysis = integer(), 
+                    s44_init = double(), 
+                    r44_init = double())
+  }
 
   left_join(x = data, y = inits, by = c("Analysis", "file_id"))
 }
@@ -577,11 +582,11 @@ extract_file_info <- function(did) {
   did |>
     iso_get_file_info() |>
     filter_info_duplicates() |>
+    add_inits(did) |>
     parse_col_types() |>
     split_meas_info() |>
     select(-one_of("measurement_info")) |> # this is a list
     add_timeofday() |>
-    add_inits(did) |>
     clumpedr::append_ref_deltas(.did = did)
 }
 
