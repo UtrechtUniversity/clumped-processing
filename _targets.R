@@ -24,6 +24,9 @@ library(tarchetypes)
 # see the file R/install_packages.R for a list of required package installation 
 # commands.
 
+# Info messages show timestamp and hide skipped targets
+# tar_config_set(reporter_make = "timestamp_positives")
+
 tar_option_set(
   packages = c("tidyverse",
                ## "readr",
@@ -32,9 +35,9 @@ tar_option_set(
                "clumpedr",
                "slider"),
   # Setting this records the workspace if it breaks. It can be slow!
-  # workspace_on_error = TRUE
+  workspace_on_error = TRUE
   # Errors continue the targets, where broken branches return NULL
-  error = "null"
+  #error = "null",
 )
 
 # options(crayon.enabled = FALSE)
@@ -45,7 +48,7 @@ options(clustermq.scheduler = "multicore")
 source("R/functions.R")
 
 # after how many days should we guarantee a re-run?
-our_update_interval <- as.difftime(1, units = "days")
+our_update_interval <- as.difftime(500, units = "days")
 # this is set very high while we process everything
 
 # general and logbooks ---------------------------------------------------------
@@ -262,25 +265,25 @@ list(
       sheet = "data",
       guess_max = 2e3,
       col_types = c(
-        "text",
-        "text",
-        "date",
-        rep("numeric", 16),
-        "text",
-        "date",
-        "text",
-        "text",
-        "numeric",
-        "text",
-        rep("numeric", 18),
-        "logical",
-        "logical",
-        "logical",
-        "text",
-        "numeric",
-        "text",
-        "date",
-        "text"
+        "text", # file_id
+        "text", # file_root
+        "date", # file_datetime
+        rep("numeric", 16), # voltage, voltage_max, min_44, ..., max_54
+        "text", # scan_group
+        "date", # scan_datetime
+        "text", # bg_group
+        "text", # scan_files
+        "numeric", # scan_n
+        "text", # scan_duration
+        rep("numeric", 8), # min, ... max_end
+        "logical", # manual_outlier
+        "logical", # manual_notes = old outlier
+        "logical", # fix_software
+        "text", # scan_group_oveewrite
+        "numeric", # voltage_overwrite
+        "text", # checked_by
+        "date", # checked_date
+        "text" # checked_comment
       ),
       na = c("", "NA")
     )

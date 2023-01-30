@@ -331,10 +331,12 @@ add_inits <- function(data, dids) {
         get_inits()
     }
   } else {
-    inits <- tibble(file_id = character(), 
-                    Analysis = integer(), 
-                    s44_init = double(), 
-                    r44_init = double())
+    # make an empty table to join, so that they become NA.
+    inits <- tibble(file_id = NA_character_, 
+                    # note below character type because we join early
+                    Analysis = NA_character_, 
+                    s44_init = NA_real_, 
+                    r44_init = NA_real_)
   }
 
   left_join(x = data, y = inits, by = c("Analysis", "file_id"))
@@ -342,7 +344,7 @@ add_inits <- function(data, dids) {
 
 fix_metadata <- function(data, meta, irms = "MotU-KielIV") {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   out <- data |>
@@ -423,7 +425,7 @@ add_parameters <- function(data, meta) {
 
 overwrite_meta <- function(meta, masspec = "MotU-KielIV", stdnames) {
   if (nrow(meta) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   desired_cols <- c("Preparation", "Identifier 1", "Identifier 2", "Weight [mg]", "Comment")
@@ -677,7 +679,7 @@ create_metadata <- function(meta, file) {
 # process background scans ------------------------------------------------
 file_name_scn <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -703,7 +705,7 @@ file_name_scn <- function(data) {
 
 fix_scan_meta <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -723,7 +725,7 @@ fix_scan_meta <- function(data) {
 # the metadata.
 fix_motu_scans <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   if (!all(c("v47.mV", "v54.mV", "fix_software") %in% colnames(data))) {
@@ -741,7 +743,7 @@ fix_motu_scans <- function(data) {
 # Tidying is reshaping into long format https://r4ds.had.co.nz/tidy-data.html.
 tidy_scans <- function(data) {
   if (!all(c("v44.mV", "v47.mV") %in% colnames(data)) | nrow(data) == 0) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -759,12 +761,12 @@ tidy_scans <- function(data) {
 # metadata columns. this one now uses columns!
 flag_scan_ranges <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   if (! all(c("min", "max", "min_start_44", "min_end_44", "min_start_45_49", "min_end_45_49", "max_start", "max_end") %in% colnames(data))) {
     warning("Scan parameters not found, emptying this target!")
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -790,7 +792,7 @@ flag_scan_capped <- function(data,
                              m49 = -498.8829,
                              m54 = -499.6343) {
   if (nrow(data) < 1) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   crit <- tibble(mass = c(44, 45:49, 54), cap = c(m44, m45, m46, m47, m48, m49, m54))
@@ -1060,7 +1062,7 @@ string_scan_files <- function(data) {
 # a special version of clumpedr's add_info that does not rely on Analysis
 add_scan_info <- function(data, .info, cols, quiet = clumpedr:::default(quiet)) {
   if (nrow(data) == 0) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   if (!"file_id" %in% cols) {
@@ -1157,14 +1159,14 @@ export_scan_metadata <- function(data, meta, file) {
 # https://github.com/isoverse/clumpedr/
 filter_duplicated_raw_cycles <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
   tidylog::distinct(data, Analysis, file_id, type, cycle, v44.mV, .keep_all = TRUE)
 }
 
 add_mineralogy <- function(data, info) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -1173,7 +1175,7 @@ add_mineralogy <- function(data, info) {
 
 add_R18 <- function(data, min = Mineralogy) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   data |>
@@ -1190,7 +1192,7 @@ add_R18 <- function(data, min = Mineralogy) {
 # summarize d45 d46 d47 d48 d49 d13C d18O D45 D46 D47 D48 D49 param_49
 summarize_d13C_d18O_D47 <- function(data) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   if (!"cycle_data" %in% names(data)) {
@@ -1258,7 +1260,7 @@ offset_correction <- function(data, std = "ETH-3", grp = NULL,
                               ## off_bin = offset_bin_D47, dur = 1.5 * 3600,
                               width = 7, out, min = 0.5, max = 0.9, quiet = clumpedr:::default(quiet)) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   if (!quiet) {
@@ -1320,7 +1322,7 @@ offset_correction <- function(data, std = "ETH-3", grp = NULL,
 ##' @param par A tibble/dataframe with paramters `grp`, `width`, and `std`.
 offset_correction_wrapper <- function(data, acc) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   prm <- purrr::possibly(zoo::rollmean, NA_real_)
@@ -1419,7 +1421,7 @@ rolling_etf <- function(data,
                         grp = etf_grp,
                         quiet = clumpedr:::default(quiet)) {
   ## if (nrow(data) == 0L) {
-  ##   return(tibble(file_id = character()))
+  ##   return(tibble(file_id = NA_character_))
   ## }
 
   if (!quiet) message(glue::glue("Info: calculating rolling empirical transfer function based on non-outlier standards {glue::glue_collapse(distinct(data, {{std}}), sep = ' ')} {quo_name(enquo(y))} values with width = {glue::glue_collapse(distinct(data, {{width}}), sep = ' ')}, grouped by {quo_name(enquo(grp))}"))
@@ -1772,7 +1774,7 @@ order_columns <- function(data, extra = NULL) {
 
 add_remaining_meta <- function(data, meta) {
   if (nrow(data) == 0L) {
-    return(tibble(file_id = character()))
+    return(tibble(file_id = NA_character_))
   }
 
   prefer_data <- c("bg_group", "bg_fac", "scan_group", "scan_datetime", "scan_group_overwrite",

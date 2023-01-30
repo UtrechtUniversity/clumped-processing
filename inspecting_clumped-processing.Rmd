@@ -22,14 +22,14 @@ This loads the libraries + plotting helpers (sam = scale_alpha_manual for outlie
 
 ```{r}
 source("R/libraries.R")
-
-  # Loads globals like tar_option_set() packages and functions
-#  library(targets)
-#  tar_load_globals()
 ```
 # Interactive Plots
 
-If there is ever a plot you'd like to zoom in on, make an interactive version of it with this `ggp()` function.
+If there is ever a plot you'd like to zoom in on, make an interactive version of 
+it with this `ggp()` function.
+
+Note that it sets the axis titles to blank, because plotly cannot handle formula 
+axis labels and we use those a lot (e.g. ylab = delta^{18}*O~"(VPDB \u2030)").
 
 ```{r}
   ggp <- function(pl = ggplot2::last_plot(), h = NULL) {

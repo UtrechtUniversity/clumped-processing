@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - inspecting_clumped-processing.Rmd notebook to make figures and check output
 - this changelog file
 - 2023-01-23: runsimple.R file to run workflow as Background Job in RStudio
+- configure targets to hide skipped targets and show timestamps
+- 2023-01-30: added note on how to run a Background Job to runninn_clumped-processing
 
 ### Fixed
 
@@ -35,7 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 2023-01-23: s44_init and r44_init were always NA for motu and pacman #8
   - Changed add_inits and extract_file_info functions (re-order, fix logic)
 
-
+### Removed
+- 2023-01-30: got rid of intercept and slope for the MotU scan metadata
+  - need to double check why so many were added to motu_scn_meta_update after previous run.
 ## [v1.0.0] - 2022-04-07
 
 ### Added

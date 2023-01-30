@@ -31,13 +31,15 @@ Results and metadata are stored in: `C:\clumpedarchive\OneDrive - Universiteit U
 
 ## running the pipeline
 
+*NOTE*: In RStudio, you can also run these steps as a `Background Job` by tweaking and running the script `runsimple.R`. This makes it possible to continue inspecting the outcome in the main R session.
+
 5. as long as I haven't fixed issue [#6 on github](https://github.com/UtrechtUniversity/clumped-processing/issues/6):
   a. run the targets up to and including all the metadata_update steps, first for the scans
   You can click the little green play icon in the top-right of the chunk or Ctrl+Shift+Enter when your cursor is anywhere inside the chunk.
 ```{r}
 targets::tar_make(names = c(
   motu_scn_meta_update, 
-  pacman_scn_meta_update
+  #pacman_scn_meta_update
 ))
 ```
   b. manually copy over the new rows in the metadata update excel files from the `out` folder:
@@ -59,7 +61,7 @@ targets::tar_make(names = c(
 targets::tar_make(names = c(
   # the new rows for the metadata files
   motu_meta_update,
-  pacman_meta_update,
+  #pacman_meta_update,
   # you can almost always leave the caf targets commented out,
   # they are pacman measurements using the Kiel III device.
   #pacman_caf_meta_update 
@@ -80,7 +82,7 @@ targets::tar_make(names = c(
 targets::tar_make(names = c(
   # to excel, to csv, to rds
   motu_export, motu_export_csv, motu_out, 
-  pacman_export, pacman_export_csv, pacman_out,
+  #pacman_export, pacman_export_csv, pacman_out,
   #pacman_caf_export, pacman_caf_export_csv, pacman_caf_out
 ),
 # use this to skip dependencies, you almost never want this!
@@ -176,6 +178,7 @@ Make sure to read the error message! It's normal to get quite a few warnings, bu
 
 Don't forget that if there's a function that you don't understand, you can read its help page from within R by typing `?<function name>` into the console.
 
-If one of the targets breaks (gives error messages), you can use `tar_workspace(<target_name>)` to check it out. This will make the data and functions that it ran into issues with available to play around.
+If one of the targets breaks (gives error messages), you can use `tar_workspace(<target_name>)` to check it out. This will make the data and functions that it ran into issues with available to play around. Note that this is only possible if the option `workspace_on_error = TRUE` is set in the top of the `_targets.R` file.
 
-Go through the steps for this target in `_targets.R` one-by-one and see if you can figure it out. If you can't, file an issue [on github](https://github.com/UtrechtUniversity/clumped-processing)
+Go through the steps for this target in `_targets.R` one-by-one and see if you can figure it out. If you can't, file an issue [on github](https://github.com/UtrechtUniversity/clumped-processing).
+Most problems are caused by trying to merge different data types, such as `<character>`, `<double>`, `<integer>`, etc.
