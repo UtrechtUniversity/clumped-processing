@@ -1,19 +1,32 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
 cff-version: 1.2.0
-message: "To reference the latest version of the code, please cite as below."
-title: "clumped-processing: R scripts to process clumped isotopes from raw data to final values at Utrecht Univerity"
+title: >-
+  clumped-processing: R scripts to process clumped isotopes
+  from raw data to final values at Utrecht Univerity
+message: >-
+  To reference the latest version of the code, please cite
+  as below.
+type: software
 authors:
   - given-names: Ilja Japhir
     family-names: Kocken
-    email: iljakocken <at> gmail.com
+    email: i.j.kocken@uu.nl
     affiliation: Utrecht University
     orcid: 'https://orcid.org/0000-0003-2196-8718'
-type: software
-license: "GPL-3"
-version: 1.0.0
-identifiers: 
-  - description: The concept DOI for the collection containing all versions of the Citation File Format.
-    type: doi
-    value: "10.5281/zenodo.6421836"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.6421836
+    description: Zenodo all versions
+repository-code: 'https://github.com/UtrechtUniversity/clumped-processing/'
+repository: 'https://zenodo.org/record/6421837'
+abstract: >-
+  This is processing code for the clumped isotope (Δ47)
+  measurements made with the Thermo Fisher MAT 253 plus
+  isotope ratio mass spectrometer with the Kiel IV automatic
+  line, located in the Vening-Meineszbuilding B, for the
+  Stratigraphy and Paleontology group at Earth Sciences, UU.
 keywords:
   - clumped
   - isotope
@@ -23,5 +36,19 @@ keywords:
   - reproducible
   - workflow
   - targets
-doi: 10.5281/zenodo.6421836
-date-released: "2022-06-23"
+license: AGPL-3.0-or-later
+version: 1.0.0
+date-released: '2022-04-07'
+references:
+  - authors:
+    - given-names: Ilja Japhir
+      family-names: Kocken
+      email: i.j.kocken@uu.nl
+      affiliation: Utrecht University
+      orcid: 'https://orcid.org/0000-0003-2196-8718'
+    - given-names: Sebastian
+      family-names: Kopf
+      affiliation: CU Boulder
+      orcid: 'https://orcid.org/0000-0002-2044-0201'
+    type: software
+    title: 'clumpedr: clumped isotope processing in R'
